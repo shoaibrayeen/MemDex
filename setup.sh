@@ -101,7 +101,8 @@ if [ "$DEV" -eq 1 ]; then
     MEMDEX="$SCRIPT_DIR/.venv/bin/memdex"
 else
     step "2. Installing the memdex CLI"
-    uv tool install --force "$SCRIPT_DIR" >/dev/null
+    # --with tiktoken = the [tokens] extra: exact token counts, not estimates.
+    uv tool install --force --with tiktoken "$SCRIPT_DIR" >/dev/null
     ok "Installed memdex $(uv tool run --from "$SCRIPT_DIR" memdex --version 2>/dev/null | awk '{print $2}' || echo '')"
 
     if ! command -v memdex >/dev/null 2>&1; then
