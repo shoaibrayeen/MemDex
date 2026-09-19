@@ -287,6 +287,33 @@ class TestBootstrap:
         assert (bare_project / "memory" / "architecture" / "service-layout.md").is_file()
         assert (bare_project / "memory" / "development" / "testing.md").is_file()
 
+    def test_bootstrap_is_backed_up_and_restorable(self, bare_project: Path):
+        """A bootstrap must be as unwindable as a run: its files land in a manifest."""
+        import json
+
+        from memdex.backup import list_backups, restore_backup
+
+        cfg = load_config(bare_project)
+        cfg.llm = llm_cfg()
+        generate_seed_memory(
+            cfg,
+            dry_run=False,
+            client=client_returning(
+                {
+                    "memories": [
+                        {"title": "A", "category": "general", "body": "b", "importance": 0.5}
+                    ]
+                }
+            ),
+        )
+        backups = list_backups(cfg)
+        assert backups and backups[0].reason == "bootstrap"
+        manifest = json.loads((backups[0].dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["created"] == ["memory/general/a.md"]
+
+        restore_backup(cfg, backups[0])
+        assert not (bare_project / "memory").exists()
+
     def test_dry_run_writes_nothing(self, bare_project: Path):
         cfg = load_config(bare_project)
         cfg.llm = llm_cfg()

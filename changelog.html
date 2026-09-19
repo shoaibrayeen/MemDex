@@ -226,6 +226,39 @@
     </div>
 
     <div class="group">
+      <h3>Packaging and providers</h3>
+      <ul>
+        <li>
+          <span class="tag add">add</span><span class="what">Docker image and compose file</span>
+          <span class="why">A slim image whose entrypoint is the CLI; the target project mounts at
+          <code>/workspace</code>, a named volume keeps the one-time embedding-model download, and the
+          dashboard runs with <code>ui --host 0.0.0.0</code>. Nothing project-specific is baked in.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">OpenAI as an LLM provider</span>
+          <span class="why"><code>provider: openai</code> presets the base URL and reads the key from
+          <code>$OPENAI_API_KEY</code> (or the variable named by <code>api_key_env</code>) at call time.
+          A key pasted into config.yaml is rejected at load, and errors never echo it.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Remote-endpoint warning</span>
+          <span class="why">When the configured LLM endpoint is not local, every LLM command says so
+          before sending anything: leaving the machine is the user's call, never a surprise.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what"><code>memdex ui --host</code></span>
+          <span class="why">The dashboard binds 127.0.0.1 by default; Docker users bind 0.0.0.0 (the
+          page is read-only) so the host can reach it. A non-loopback bind prints a notice.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Root <code>CLAUDE.md</code> as a default readonly source</span>
+          <span class="why">Claude Code keeps its primary project rules there, so it is indexed and
+          searchable alongside <code>AGENTS.md</code> and the assistant directories — never rewritten.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="group">
       <h3>Fixed during development</h3>
       <p class="summary" style="margin-bottom: 12px">
         Found by running Memdex against its own repository and the bundled example.
@@ -322,7 +355,7 @@
           <tr><td>Dependencies</td><td>typer, rich, pyyaml, chromadb, httpx (tiktoken optional)</td></tr>
           <tr><td>Vector store</td><td>ChromaDB, embedded and local, telemetry off</td></tr>
           <tr><td>Network in default mode</td><td>None, enforced by a test</td></tr>
-          <tr><td>Tests</td><td>320, fully offline, about five seconds</td></tr>
+          <tr><td>Tests</td><td>343, fully offline, about five seconds</td></tr>
         </tbody>
       </table>
     </div>

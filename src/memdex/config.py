@@ -19,12 +19,21 @@ MEMDEX_DIR = ".memdex"
 CONFIG_NAME = "config.yaml"
 
 DEFAULT_MANAGED_SOURCES = ("MEMORY.md", "memory.md", "memory/", ".memory/")
-DEFAULT_READONLY_SOURCES = ("AGENTS.md", ".claude/", ".cursor/", ".ai/", ".agent/")
+DEFAULT_READONLY_SOURCES = ("CLAUDE.md", "AGENTS.md", ".claude/", ".cursor/", ".ai/", ".agent/")
 
 PROVIDER_BASE_URLS = {
     "ollama": "http://localhost:11434/v1",
     "lmstudio": "http://localhost:1234/v1",
+    "openai": "https://api.openai.com/v1",
 }
+
+# The env var each provider conventionally keeps its key in. The key itself
+# never appears in config.yaml — a vector-store directory gets committed by
+# accident far too easily for secrets to live next to it.
+PROVIDER_KEY_ENVS = {"openai": "OPENAI_API_KEY"}
+GENERIC_KEY_ENV = "MEMDEX_LLM_API_KEY"
+
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "::1", "host.docker.internal")
 
 EMBEDDING_PROVIDERS = ("local", "hash", "ollama")
 
@@ -35,6 +44,7 @@ class LLMConfig:
     provider: str = "ollama"
     model: str | None = None
     base_url: str | None = None
+    api_key_env: str | None = None
     timeout: float = 30.0
     bootstrap_context_tokens: int = 24000
 
@@ -43,6 +53,33 @@ class LLMConfig:
         if self.base_url:
             return self.base_url.rstrip("/")
         return PROVIDER_BASE_URLS.get(self.provider)
+
+    @property
+    def key_env_name(self) -> str:
+        """Which environment variable is consulted for an API key."""
+        return self.api_key_env or PROVIDER_KEY_ENVS.get(self.provider, GENERIC_KEY_ENV)
+
+    @property
+    def resolved_api_key(self) -> str | None:
+        import os
+
+        value = os.environ.get(self.key_env_name, "").strip()
+        return value or None
+
+    @property
+    def needs_api_key(self) -> bool:
+        return self.provider == "openai"
+
+    @property
+    def is_remote(self) -> bool:
+        """True when the endpoint leaves this machine — memory content follows it."""
+        base = self.resolved_base_url
+        if not base:
+            return False
+        from urllib.parse import urlparse
+
+        host = (urlparse(base).hostname or "").lower()
+        return host not in LOCAL_HOSTS
 
     @property
     def is_usable(self) -> bool:
@@ -64,6 +101,9 @@ class Thresholds:
 class UIConfig:
     enabled: bool = True
     port: int = 7644
+    # 127.0.0.1 keeps the dashboard private to this machine. Docker users bind
+    # 0.0.0.0 (the page is read-only) so the host can reach it.
+    host: str = "127.0.0.1"
 
 
 @dataclass
@@ -254,11 +294,21 @@ def parse_config(data: dict | None, root: Path) -> MemdexConfig:
         raise ConfigError("optimizer.duplicate_similarity must be between 0 and 1.")
 
     llm_model = llm_raw.get("model")
+    raw_key = str(llm_raw.get("api_key", "")).strip()
+    if raw_key and len(raw_key) > 12:
+        raise ConfigError(
+            "llm.api_key looks like a real key — Memdex never stores secrets in config.yaml.",
+            hint=(
+                "Remove it and set llm.api_key_env: OPENAI_API_KEY "
+                "(the *name* of the variable) instead."
+            ),
+        )
     llm = LLMConfig(
         enabled=_as_bool(llm_raw.get("enabled"), False),
         provider=str(llm_raw.get("provider", "ollama")).lower(),
         model=str(llm_model) if llm_model else None,
         base_url=str(llm_raw["base_url"]) if llm_raw.get("base_url") else None,
+        api_key_env=str(llm_raw["api_key_env"]) if llm_raw.get("api_key_env") else None,
         timeout=_as_float(llm_raw.get("timeout"), 30.0),
         bootstrap_context_tokens=_as_int(llm_raw.get("bootstrap_context_tokens"), 24000),
     )
@@ -284,6 +334,7 @@ def parse_config(data: dict | None, root: Path) -> MemdexConfig:
         ui=UIConfig(
             enabled=_as_bool(ui_raw.get("enabled"), True),
             port=_as_int(ui_raw.get("port"), 7644),
+            host=str(ui_raw.get("host") or "127.0.0.1"),
         ),
         audit_enabled=_as_bool(audit_raw.get("enabled"), True),
         warnings=warnings,
@@ -321,6 +372,7 @@ memory:
     - MEMORY.md
     - memory/
     - .memory/
+    - {{path: CLAUDE.md, mode: readonly}}
     - {{path: AGENTS.md, mode: readonly}}
     - {{path: .claude/, mode: readonly}}
     - {{path: .cursor/, mode: readonly}}
@@ -350,15 +402,18 @@ optimizer:
 
 llm:
   enabled: false
-  provider: ollama        # ollama | lmstudio | openai-compatible
-  model: null             # e.g. qwen2.5:14b — prefer a high-context model
+  provider: ollama        # ollama | lmstudio | openai | openai-compatible
+  model: null             # e.g. qwen2.5:14b (ollama) or gpt-4o (openai)
   base_url: null          # defaults per provider
+  api_key_env: null       # NAME of the env var holding the key (e.g. OPENAI_API_KEY).
+                          # Never put the key itself in this file.
   timeout: 30
   bootstrap_context_tokens: 24000
 
 ui:
   enabled: {str(ui_enabled).lower()}
   port: 7644
+  host: 127.0.0.1         # 0.0.0.0 to reach it from outside (e.g. Docker)
 
 audit:
   enabled: true

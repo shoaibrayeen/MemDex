@@ -46,6 +46,34 @@ The one-shot installer handles everything, including the Python version:
 | `--uninstall` | Remove the CLI (your project data is untouched) |
 
 <details>
+<summary>Docker</summary>
+
+```bash
+docker build -t memdex .
+
+# run any command against a mounted project
+docker run --rm -v "$PWD:/workspace" memdex init --here --yes
+docker run --rm -v "$PWD:/workspace" -v memdex-cache:/root/.cache memdex run
+docker run --rm -v "$PWD:/workspace" memdex search "why did we choose X?"
+
+# the dashboard (bind 0.0.0.0 inside the container so the host can reach it)
+docker run --rm -p 127.0.0.1:7644:7644 -v "$PWD:/workspace" memdex ui --host 0.0.0.0
+```
+
+Or with compose — `MEMDEX_PROJECT` points at the repo to index:
+
+```bash
+MEMDEX_PROJECT=/path/to/your/repo docker compose up dashboard
+MEMDEX_PROJECT=/path/to/your/repo docker compose run --rm memdex run
+```
+
+Notes for containers: mount `memdex-cache:/root/.cache` so the one-time
+embedding-model download survives across runs; `OPENAI_API_KEY` is passed
+through from your shell by compose, never stored; to reach an Ollama running on
+the host, set `llm.base_url: http://host.docker.internal:11434/v1`.
+</details>
+
+<details>
 <summary>Manual installation</summary>
 
 ```bash
@@ -364,6 +392,7 @@ memory:
     - MEMORY.md
     - memory/
     - .memory/
+    - {path: CLAUDE.md, mode: readonly}
     - {path: AGENTS.md, mode: readonly}
     - {path: .claude/, mode: readonly}
     - {path: .cursor/, mode: readonly}
@@ -388,15 +417,17 @@ optimizer:
 
 llm:
   enabled: false
-  provider: ollama        # ollama | lmstudio | openai-compatible
+  provider: ollama        # ollama | lmstudio | openai | openai-compatible
   model: null
-  base_url: null
+  base_url: null          # defaults per provider (openai → https://api.openai.com/v1)
+  api_key_env: null       # NAME of the env var holding the key, never the key
   timeout: 30
   bootstrap_context_tokens: 24000
 
 ui:
   enabled: true
   port: 7644
+  host: 127.0.0.1         # 0.0.0.0 to reach it from outside (e.g. Docker)
 
 audit:
   enabled: true
@@ -471,6 +502,28 @@ llm:
   provider: lmstudio
   model: your-loaded-model
 ```
+</details>
+
+<details>
+<summary>OpenAI</summary>
+
+```yaml
+llm:
+  enabled: true
+  provider: openai
+  model: gpt-4o            # or gpt-4o-mini
+  api_key_env: OPENAI_API_KEY   # the NAME of the env var — never the key itself
+```
+
+```bash
+export OPENAI_API_KEY=sk-…    # in your shell, .env, or secret manager
+memdex run --llm
+```
+
+Memdex reads the key from the environment at call time and sends it only as the
+request's Authorization header. A key pasted into config.yaml is rejected at
+load time. Because the endpoint is remote, every LLM command prints a warning
+that memory content will be sent to it.
 </details>
 
 <details>
@@ -571,7 +624,7 @@ right interpreter, so the practical difference for users is small.
 
 ```bash
 ./setup.sh --dev      # sync dependencies, run the tests, lint
-uv run pytest         # 320 tests
+uv run pytest         # 343 tests
 uv run ruff check .
 ```
 

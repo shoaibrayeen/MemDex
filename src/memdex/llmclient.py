@@ -32,10 +32,15 @@ class LLMClient:
             )
         return base
 
+    def _headers(self) -> dict[str, str]:
+        """The key comes from the environment at call time and is never logged."""
+        key = self.cfg.resolved_api_key
+        return {"Authorization": f"Bearer {key}"} if key else {}
+
     def _client(self):
         import httpx
 
-        kwargs = {"timeout": self.cfg.timeout}
+        kwargs = {"timeout": self.cfg.timeout, "headers": self._headers()}
         if self._transport is not None:
             kwargs["transport"] = self._transport
         return httpx.Client(**kwargs)
@@ -75,7 +80,7 @@ class LLMClient:
         import httpx
 
         try:
-            kwargs = {"timeout": min(self.cfg.timeout, 5.0)}
+            kwargs = {"timeout": min(self.cfg.timeout, 5.0), "headers": self._headers()}
             if self._transport is not None:
                 kwargs["transport"] = self._transport
             with httpx.Client(**kwargs) as client:

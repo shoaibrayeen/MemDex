@@ -128,23 +128,32 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send(404, b"not found", "text/plain; charset=utf-8")
 
 
-def build_server(cfg: MemdexConfig, port: int) -> ThreadingHTTPServer:
+def build_server(
+    cfg: MemdexConfig, port: int, host: str = "127.0.0.1"
+) -> ThreadingHTTPServer:
     handler = partial(DashboardHandler, cfg=cfg)
     try:
-        return ThreadingHTTPServer(("127.0.0.1", port), handler)
+        return ThreadingHTTPServer((host, port), handler)
     except OSError as exc:
         raise MemdexError(
-            f"Could not start the dashboard on port {port} ({exc.strerror or exc}).",
+            f"Could not start the dashboard on {host}:{port} ({exc.strerror or exc}).",
             hint="Pass --port with a free port, or use `memdex history` in the terminal.",
         ) from exc
 
 
-def serve(cfg: MemdexConfig, port: int, open_browser: bool = False) -> None:
+def serve(
+    cfg: MemdexConfig, port: int, open_browser: bool = False, host: str = "127.0.0.1"
+) -> None:
     from memdex import output
 
-    server = build_server(cfg, port)
-    url = f"http://127.0.0.1:{server.server_address[1]}"
+    server = build_server(cfg, port, host=host)
+    shown_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    url = f"http://{shown_host}:{server.server_address[1]}"
     output.info(f"\n[head]Memdex dashboard[/head]  {url}")
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        output.warn(
+            f"Listening on {host} — the dashboard (read-only) is reachable from your network."
+        )
     output.note("Read-only. Press Ctrl+C to stop.\n")
     if open_browser:
         webbrowser.open(url)

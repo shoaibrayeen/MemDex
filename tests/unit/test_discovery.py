@@ -59,6 +59,13 @@ class TestWhatIsRead:
         write(project, "memory/a/b/deep.md")
         assert any(str(s.path) == "memory/a/b/deep.md" for s in discover(cfg_for(project))[0])
 
+    def test_root_claude_and_agents_files_are_readonly_sources(self, project: Path):
+        write(project, "CLAUDE.md", "# Rules\n\nRead MEMORY.md first.")
+        write(project, "AGENTS.md", "# Agents\n\nRead MEMORY.md first, then search.")
+        modes = {str(s.path): s.mode for s in discover(cfg_for(project))[0]}
+        assert modes["CLAUDE.md"] is SourceMode.READONLY
+        assert modes["AGENTS.md"] is SourceMode.READONLY
+
     def test_reads_cursor_mdc_rules(self, project: Path):
         write(project, ".cursor/rules/style.mdc", "---\ndescription: x\n---\n# Style\n")
         assert any(s.path.suffix == ".mdc" for s in discover(cfg_for(project))[0])

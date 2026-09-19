@@ -216,14 +216,28 @@ def generate_seed_memory(
             output.note(f"    {unit.body.splitlines()[0][:100]}")
         return len(units)
 
-    used: set[Path] = set()
+    targets: dict[Path, MemoryUnit] = {}
     for unit in units:
         path = cfg.root / unit.source_file
         suffix = 2
-        while path in used:
+        while path in targets:
             path = path.with_name(f"{path.stem}-{suffix}.md")
             suffix += 1
-        used.add(path)
+        targets[path] = unit
+
+    # Record what is about to be written, so `memdex restore` can unwind a
+    # bootstrap exactly like it unwinds a run. These are all new files — the
+    # manifest carries them as "created" and restore removes them.
+    from memdex.backup import create_backup
+    from memdex.models import FileOp
+
+    ops = [
+        FileOp(path=path.relative_to(cfg.root), action="write", reason="bootstrap seed")
+        for path in targets
+    ]
+    create_backup(cfg, ops, reason="bootstrap")
+
+    for path, unit in targets.items():
         atomic_write(path, render_doc(unit))
 
     # Leave a note in the LLM's own words about where this memory came from, so

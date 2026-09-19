@@ -1,0 +1,34 @@
+# Run the Memdex dashboard (and one-off commands) against a project.
+#
+#   MEMDEX_PROJECT=/path/to/your/repo docker compose up dashboard
+#   → http://127.0.0.1:7644
+#
+# One-off commands against the same project:
+#
+#   MEMDEX_PROJECT=/path/to/your/repo docker compose run --rm memdex run
+#   MEMDEX_PROJECT=/path/to/your/repo docker compose run --rm memdex search "why X?"
+#
+# MEMDEX_PROJECT defaults to the current directory. OPENAI_API_KEY is passed
+# through from your shell only if you have set it; it is never baked into the
+# image or written anywhere.
+
+services:
+  memdex:
+    build: .
+    image: memdex:latest
+    volumes:
+      - ${MEMDEX_PROJECT:-.}:/workspace
+      - memdex-cache:/root/.cache
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - MEMDEX_LLM_API_KEY=${MEMDEX_LLM_API_KEY:-}
+
+  dashboard:
+    extends: memdex
+    command: ui --host 0.0.0.0 --port 7644
+    ports:
+      - "127.0.0.1:7644:7644"
+
+volumes:
+  # Keeps the one-time embedding-model download across containers.
+  memdex-cache:

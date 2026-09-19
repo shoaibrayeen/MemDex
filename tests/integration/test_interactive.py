@@ -141,23 +141,27 @@ class TestUiCommand:
         """`memdex ui` must hand the config to the server and honour Ctrl+C."""
         seen: dict = {}
 
-        def fake_serve(cfg, port, open_browser=False):
+        def fake_serve(cfg, port, open_browser=False, host="127.0.0.1"):
             seen["port"] = port
             seen["root"] = cfg.root
             seen["open"] = open_browser
+            seen["host"] = host
 
         monkeypatch.setattr("memdex.ui.server.serve", fake_serve)
-        run(runner, "ui", "--port", "8123")
-        assert seen == {"port": 8123, "root": demo_project, "open": False}
+        run(runner, "ui", "--port", "8123", "--host", "0.0.0.0")
+        assert seen == {"port": 8123, "root": demo_project, "open": False, "host": "0.0.0.0"}
 
     def test_uses_the_configured_port_by_default(self, runner, demo_project: Path, monkeypatch):
         seen: dict = {}
         monkeypatch.setattr(
             "memdex.ui.server.serve",
-            lambda cfg, port, open_browser=False: seen.update(port=port),
+            lambda cfg, port, open_browser=False, host="127.0.0.1": seen.update(
+                port=port, host=host
+            ),
         )
         run(runner, "ui")
         assert seen["port"] == 7644
+        assert seen["host"] == "127.0.0.1"  # private by default
 
 
 class TestLastRunSnapshot:

@@ -1,0 +1,7 @@
+# Only pyproject.toml, README.md and src/ are copied into the image; keeping the
+# rest out of the build context makes builds fast and keeps local data out.
+*
+!pyproject.toml
+!README.md
+!src
+src/**/__pycache__

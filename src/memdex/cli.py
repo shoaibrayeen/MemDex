@@ -203,6 +203,10 @@ def _execute(cfg: MemdexConfig, mode: PlanMode, dry_run: bool, use_llm: bool | N
         if _offer_bootstrap(cfg):
             return
 
+    llm_active = use_llm if use_llm is not None else cfg.optimizer_mode == "llm"
+    if llm_active:
+        _warn_if_remote_llm(cfg)
+
     output.banner()
     try:
         with acquire(cfg.memdex_dir):
@@ -230,6 +234,15 @@ def _execute(cfg: MemdexConfig, mode: PlanMode, dry_run: bool, use_llm: bool | N
         output.token_block(report)
         output.info(f"\n  Memory files:\n    {report.units_final}")
     output.run_summary(report, cfg)
+
+
+def _warn_if_remote_llm(cfg: MemdexConfig) -> None:
+    """Leaving the machine is the user's call, but it should never be a surprise."""
+    if cfg.llm.is_usable and cfg.llm.is_remote:
+        output.warn(
+            f"The LLM endpoint is remote ({cfg.llm.resolved_base_url}) — "
+            "memory content will be sent to it."
+        )
 
 
 def _no_memory_anywhere(cfg: MemdexConfig) -> bool:
@@ -288,6 +301,7 @@ def _bootstrap(cfg: MemdexConfig, dry_run: bool) -> None:
                 ),
             )
         )
+    _warn_if_remote_llm(cfg)
     output.banner()
     try:
         with acquire(cfg.memdex_dir):
@@ -299,6 +313,20 @@ def _bootstrap(cfg: MemdexConfig, dry_run: bool) -> None:
     if dry_run:
         output.note("\nNothing was written. Run without --dry-run to apply.\n")
         return
+
+    from memdex.store import VectorStore
+
+    audit_log.record(
+        cfg,
+        VectorStore(cfg),
+        audit_log.simple_event(
+            "bootstrap",
+            f"generated {written} seed memories from the codebase "
+            f"({cfg.llm.provider}:{cfg.llm.model})",
+            units=written,
+            files_written=written,
+        ),
+    )
     output.step(f"Wrote {written} seed memories to {cfg.output_dir}")
     output.info("\nNow run [accent]memdex run[/accent] to optimize and index them.\n")
 
@@ -478,6 +506,11 @@ def _check_embedder(cfg: MemdexConfig) -> tuple[bool, str]:
 def _check_llm(cfg: MemdexConfig) -> tuple[bool, str]:
     if not cfg.llm.model:
         return False, "llm.enabled is true but llm.model is not set"
+    if cfg.llm.needs_api_key and not cfg.llm.resolved_api_key:
+        return False, (
+            f"{cfg.llm.provider} needs an API key, but ${cfg.llm.key_env_name} is not set "
+            "in the environment"
+        )
     from memdex.llmclient import LLMClient
 
     client = LLMClient(cfg.llm)
@@ -629,6 +662,9 @@ def clean(
 @app.command()
 def ui(
     port: int | None = typer.Option(None, "--port", "-p", help="Port to serve on."),
+    host: str | None = typer.Option(
+        None, "--host", help="Interface to bind (default 127.0.0.1; use 0.0.0.0 in Docker)."
+    ),
     open_browser: bool = typer.Option(False, "--open", help="Open the dashboard in a browser."),
 ) -> None:
     """Serve the local dashboard showing token savings over time."""
@@ -642,7 +678,12 @@ def ui(
         )
         raise typer.Exit(code=1)
     try:
-        serve(cfg, port=port or cfg.ui.port, open_browser=open_browser)
+        serve(
+            cfg,
+            port=port or cfg.ui.port,
+            open_browser=open_browser,
+            host=host or cfg.ui.host,
+        )
     except MemdexError as exc:
         _fail(exc)
 
