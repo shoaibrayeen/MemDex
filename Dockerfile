@@ -27,7 +27,7 @@ FROM python:3.12-slim
 LABEL org.opencontainers.image.title="Memdex" \
       org.opencontainers.image.description="Local-first memory optimizer for AI coding assistants" \
       org.opencontainers.image.source="https://github.com/memdex/memdex" \
-      org.opencontainers.image.version="1.0.5-beta"
+      org.opencontainers.image.version="1.0.6-beta"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

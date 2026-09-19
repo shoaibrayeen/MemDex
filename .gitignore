@@ -11,6 +11,14 @@ build/
 htmlcov/
 .DS_Store
 
+# Secrets never belong in the repository. The README points people at a .env for
+# OPENAI_API_KEY, so that file must be uncommittable by construction.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
 # Memdex's own local data: the vector store, backups and registry are local,
 # but the config travels with the repo so everyone shares the same setup.
 .memdex/*

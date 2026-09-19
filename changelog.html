@@ -100,6 +100,24 @@
 
   <section class="release">
     <div class="release-head">
+      <h2>1.0.6-beta</h2>
+      <span class="pill">patch</span>
+      <span class="date">19 September 2026</span>
+    </div>
+
+    <div class="group">
+      <h3>Changes</h3>
+      <ul>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Secret files cannot be committed</span>
+          <span class="why">The README points people at a .env for OPENAI_API_KEY, but .gitignore did not cover it. .env, .env.*, *.pem and *.key are now ignored, and a test suite asserts the key never reaches disk, terminal output or the dashboard.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
       <h2>1.0.5-beta</h2>
       <span class="pill">patch</span>
       <span class="date">19 September 2026</span>

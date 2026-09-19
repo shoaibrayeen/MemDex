@@ -1,6 +1,6 @@
 # Memdex
 
-**A local-first memory optimizer for AI coding assistants.** `v1.0.5-beta`
+**A local-first memory optimizer for AI coding assistants.** `v1.0.6-beta`
 
 Memdex turns the large, unstructured memory your AI assistant accumulates —
 `MEMORY.md`, `memory/`, `AGENTS.md`, `.claude/`, `.cursor/` — into a small searchable index
@@ -711,8 +711,8 @@ which one is unhappy.
 
 ## Versioning
 
-Memdex follows semantic versioning; the current release is **v1.0.5-beta**
-(package metadata: `1.0.5b0`). Beta means the CLI surface and config schema are
+Memdex follows semantic versioning; the current release is **v1.0.6-beta**
+(package metadata: `1.0.6b0`). Beta means the CLI surface and config schema are
 settling.
 
 **Every change ships a patch bump**, in the same commit as the change and its
