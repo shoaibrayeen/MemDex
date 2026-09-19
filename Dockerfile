@@ -26,12 +26,20 @@ FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="Memdex" \
       org.opencontainers.image.description="Local-first memory optimizer for AI coding assistants" \
-      org.opencontainers.image.source="https://github.com/memdex/memdex"
+      org.opencontainers.image.source="https://github.com/memdex/memdex" \
+      org.opencontainers.image.version="1.0.0-beta"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     MEMDEX_IN_DOCKER=1
+
+# git powers `memdex refresh`; a bind-mounted repo belongs to the host user, so
+# it must be marked safe inside this single-purpose container.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/* \
+    && git config --system --add safe.directory '*'
 
 RUN --mount=from=build,source=/dist,target=/dist \
     pip install "$(ls /dist/*.whl)[tokens]"

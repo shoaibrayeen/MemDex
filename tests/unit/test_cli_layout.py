@@ -17,7 +17,7 @@ from memdex.tokens import HeuristicCounter
 from tests.conftest import unit
 
 COMMANDS = (
-    "init", "run", "compact", "index", "bootstrap", "search",
+    "init", "run", "compact", "index", "refresh", "bootstrap", "search",
     "status", "history", "doctor", "restore", "clean", "ui",
 )
 
@@ -249,3 +249,19 @@ class TestBackups:
         create_backup(cfg, [FileOp(path=Path("MEMORY.md"), action="overwrite")], "run")
         with pytest.raises(BackupError):
             find_backup(cfg, "nope", latest=False)
+
+
+class TestVersioning:
+    def test_display_and_package_versions_are_one_release(self):
+        """`memdex --version` says 1.0.0-beta; pyproject says 1.0.0b0 — same release."""
+        import tomllib
+        from packaging.version import Version
+
+        pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        packaged = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+        assert Version(packaged) == Version(__version__)
+
+    def test_beta_is_a_prerelease(self):
+        from packaging.version import Version
+
+        assert Version(__version__).is_prerelease

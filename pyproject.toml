@@ -1,6 +1,6 @@
 [project]
 name = "memdex"
-version = "0.1.0"
+version = "1.0.0b0"
 description = "Local-first memory optimizer for AI coding assistants"
 readme = "README.md"
 requires-python = ">=3.10"

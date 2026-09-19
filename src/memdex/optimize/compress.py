@@ -26,6 +26,10 @@ FILLER_PATTERNS = (
 FILLER_RE = re.compile(rf"^\s*(?:{'|'.join(FILLER_PATTERNS)})[!.…\s]*$", re.IGNORECASE)
 MAX_FILLER_LINE = 120
 
+# Template placeholders ("_(none yet)_", with or without a list dash) mark a
+# section the assistant has not filled yet — they are scaffolding, not memory.
+PLACEHOLDER_RE = re.compile(r"^\s*[-*+]?\s*_\(none yet\)_\s*$")
+
 SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s")
 LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 # Only paired markers are emphasis. A bare underscore belongs to an identifier
@@ -44,15 +48,58 @@ def _is_filler(line: str) -> bool:
     return bool(FILLER_RE.match(stripped))
 
 
+def _strip_html_comments(lines: list[str], inside: list[bool]) -> tuple[list[str], list[bool]]:
+    """Remove <!-- … --> outside code fences, including multi-line blocks.
+
+    Comments are authorial scaffolding — template instructions, section hints —
+    not memory. Inside a fence they are code and stay byte-identical.
+    """
+    out_lines: list[str] = []
+    out_inside: list[bool] = []
+    in_comment = False
+    for line, fenced in zip(lines, inside, strict=True):
+        if fenced:
+            out_lines.append(line)
+            out_inside.append(True)
+            continue
+        text = line
+        while True:
+            if in_comment:
+                close = text.find("-->")
+                if close == -1:
+                    text = None
+                    break
+                text = text[close + 3 :]
+                in_comment = False
+            else:
+                start = text.find("<!--")
+                if start == -1:
+                    break
+                close = text.find("-->", start + 4)
+                if close == -1:
+                    text = text[:start]
+                    in_comment = True
+                    break
+                text = text[:start] + text[close + 3 :]
+        if text is None:
+            continue
+        if line.strip() and not text.strip():
+            continue  # the line was only a comment; do not leave a blank behind
+        out_lines.append(text)
+        out_inside.append(False)
+    return out_lines, out_inside
+
+
 def compress(body: str) -> str:
-    """Drop conversational filler, collapse blank runs, remove repeated paragraphs."""
+    """Drop scaffolding and filler, collapse blank runs, remove repeated paragraphs."""
     lines = body.splitlines()
     inside = _fence_spans(lines)
+    lines, inside = _strip_html_comments(lines, inside)
 
     kept: list[str] = []
     kept_inside: list[bool] = []
     for idx, line in enumerate(lines):
-        if not inside[idx] and _is_filler(line):
+        if not inside[idx] and (_is_filler(line) or PLACEHOLDER_RE.match(line)):
             continue
         kept.append(line.rstrip() if not inside[idx] else line)
         kept_inside.append(inside[idx])

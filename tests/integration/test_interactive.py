@@ -114,11 +114,18 @@ class TestBootstrapOffer:
         assert result.exit_code == 1  # bootstrap needs the model it cannot reach
         assert "Reading the codebase" in result.output
 
-    def test_without_an_llm_it_explains_the_setup(self, runner, bare_project: Path, interactive):
+    def test_without_an_llm_it_seeds_the_assistant_template(
+        self, runner, bare_project: Path, interactive
+    ):
+        """No LLM configured -> the user's own AI assistant becomes the generator."""
         result = run(runner, "run")
-        assert "large context window" in result.output or "high-context" in result.output
-        assert "memdex bootstrap" in result.output
-        assert not (bare_project / "memory").exists()
+        text = " ".join(result.output.split())
+        assert "template for your AI assistant" in text
+        assert (bare_project / "MEMORY.md").is_file()
+        content = (bare_project / "MEMORY.md").read_text(encoding="utf-8")
+        assert content.startswith("<!-- memdex:template")
+        assert "memdex run" in content  # the instructions tell the assistant how to sync
+        assert not (bare_project / "memory").exists()  # nothing indexed yet
 
 
 class TestMonorepoInitDefault:

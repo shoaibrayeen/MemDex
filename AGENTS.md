@@ -17,6 +17,8 @@ This repository is indexed by Memdex:
 1. Read `MEMORY.md` — a small index of titles, one-line descriptions and paths.
 2. Open only the memory files relevant to your task.
 3. To search by meaning: `memdex search "<question>" --top-k 3`.
+4. After pulling new commits: `memdex refresh` (flags memories whose cited
+   code changed; `--llm` lets the model update them).
 
 Do not load the whole `memory/` tree. `MEMORY.md` is generated — edit files under
 `memory/` and run `memdex run` to regenerate the index and vectors.

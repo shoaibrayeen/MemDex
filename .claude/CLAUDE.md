@@ -18,7 +18,9 @@ memdex search "why is the pipeline split in two?" --top-k 3
 Then read the files it returns. Do not load the whole `memory/` tree into context.
 
 After changing something a memory describes, update that memory file and run
-`memdex run` so the index and vectors follow. Never hand-edit `MEMORY.md` — it is
+`memdex run` so the index and vectors follow. After pulling other people's
+commits, run `memdex refresh` — it flags memories whose cited code changed
+or disappeared, and re-indexes pulled memory edits. Never hand-edit `MEMORY.md` — it is
 generated, and the marker at the top says so.
 
 ## Commands

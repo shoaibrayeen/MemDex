@@ -223,6 +223,18 @@ def _execute(cfg: MemdexConfig, mode: PlanMode, dry_run: bool, use_llm: bool | N
                 output.note("\nNothing was written. Run without --dry-run to apply.\n")
                 return
 
+            if (
+                mode is PlanMode.RUN
+                and plan.report.units_final == 0
+                and _template_unfilled(cfg)
+            ):
+                output.warn(f"{cfg.index_path} is still the unfilled template.")
+                output.info(
+                    "\nAsk your coding assistant to fill its sections with real memories "
+                    "from this codebase,\nthen run [accent]memdex run[/accent] again.\n"
+                )
+                return
+
             report = apply_plan(cfg, plan, progress=output.step)
     except MemdexError as exc:
         _fail(exc)
@@ -236,6 +248,35 @@ def _execute(cfg: MemdexConfig, mode: PlanMode, dry_run: bool, use_llm: bool | N
     output.run_summary(report, cfg)
 
 
+def _write_template(cfg: MemdexConfig) -> None:
+    from memdex.bootstrap import write_assistant_template
+    from memdex.store import VectorStore
+
+    try:
+        path = write_assistant_template(cfg)
+    except MemdexError as exc:
+        _fail(exc)
+        return
+    audit_log.record(
+        cfg,
+        VectorStore(cfg),
+        audit_log.simple_event(
+            "seed", f"created the assistant template {path}", files_written=1
+        ),
+    )
+    output.step(f"Created [accent]{path}[/accent] — a template for your AI assistant to fill")
+    output.info(
+        "\nNext, ask your coding assistant (Claude Code, Cursor, Codex, …):\n\n"
+        f"  [head]1[/head]  Read {path} and fill each section with real memories "
+        "from this codebase\n"
+        "  [head]2[/head]  Run [accent]memdex run[/accent] to organize, index and embed them\n"
+    )
+    output.note(
+        "Prefer a model to write the first draft instead? Configure llm in "
+        ".memdex/config.yaml and run `memdex bootstrap`.\n"
+    )
+
+
 def _warn_if_remote_llm(cfg: MemdexConfig) -> None:
     """Leaving the machine is the user's call, but it should never be a surprise."""
     if cfg.llm.is_usable and cfg.llm.is_remote:
@@ -243,6 +284,15 @@ def _warn_if_remote_llm(cfg: MemdexConfig) -> None:
             f"The LLM endpoint is remote ({cfg.llm.resolved_base_url}) — "
             "memory content will be sent to it."
         )
+
+
+def _template_unfilled(cfg: MemdexConfig) -> bool:
+    from memdex.models import TEMPLATE_MARKER
+
+    try:
+        return TEMPLATE_MARKER in cfg.abs_index_path.read_text(encoding="utf-8")[:512]
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 def _no_memory_anywhere(cfg: MemdexConfig) -> bool:
@@ -253,15 +303,15 @@ def _no_memory_anywhere(cfg: MemdexConfig) -> bool:
 
 
 def _offer_bootstrap(cfg: MemdexConfig) -> bool:
-    """No memory to optimize yet. Offer to generate some from the codebase."""
+    """No memory to optimize yet. Seed some — with the configured LLM, or without.
+
+    Without an LLM the seed is a template addressed to the user's own coding
+    assistant: it already knows this codebase, so it writes the memories and
+    Memdex indexes them. No model configuration needed at all.
+    """
     output.warn("No project memory found in the configured sources.")
     if not cfg.llm.is_usable:
-        output.info(
-            "\nMemdex can write a first MEMORY.md by reading your codebase, but that needs an\n"
-            "LLM with a large context window. Configure one in .memdex/config.yaml:\n"
-        )
-        output.note("  llm:\n    enabled: true\n    provider: ollama\n    model: qwen2.5:14b")
-        output.info("\nThen run: [accent]memdex bootstrap[/accent]\n")
+        _write_template(cfg)
         return True
     if not _interactive():
         output.info("\nRun [accent]memdex bootstrap[/accent] to generate memory from your code.\n")
@@ -271,6 +321,113 @@ def _offer_bootstrap(cfg: MemdexConfig) -> bool:
         return True
     output.note("Nothing to do. Add notes to MEMORY.md, or run `memdex bootstrap` later.\n")
     return True
+
+
+# ---------------------------------------------------------------------------
+# refresh
+# ---------------------------------------------------------------------------
+@app.command()
+def refresh(
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what changed and what is affected; write nothing."
+    ),
+    llm: bool | None = typer.Option(
+        None, "--llm/--no-llm", help="Have the model verify and update affected memories."
+    ),
+    since: str | None = typer.Option(
+        None, "--since", help="Git revision to compare against (default: the last refresh)."
+    ),
+) -> None:
+    """Bring memory in line with code that changed — run it after every pull."""
+    from memdex import audit as audit_log
+    from memdex.pipeline import apply_plan, build_plan
+    from memdex.refresh import build_refresh_report, save_baseline, verify_with_llm
+    from memdex.store import VectorStore
+
+    cfg = _load()
+    use_llm = llm if llm is not None else cfg.optimizer_mode == "llm"
+    if use_llm and not cfg.llm.is_usable:
+        _fail(
+            ConfigError(
+                "The LLM layer is not configured.",
+                hint="Set llm.enabled: true and llm.model in .memdex/config.yaml, "
+                "or run `memdex refresh --no-llm` for the deterministic report.",
+            )
+        )
+    if use_llm:
+        _warn_if_remote_llm(cfg)
+
+    from memdex.refresh import fixable_candidates
+
+    output.banner()
+    try:
+        with acquire(cfg.memdex_dir):
+            report, _units = build_refresh_report(cfg, since=since)
+            fixable = fixable_candidates(report)
+
+            if dry_run:
+                output.refresh_report(report, llm_used=False)
+                if use_llm and fixable:
+                    output.note(
+                        "\nDry run — the model review and re-index were skipped. "
+                        "Run without --dry-run to apply.\n"
+                    )
+                else:
+                    output.note("\nDry run — nothing was written.\n")
+                return
+
+            if use_llm and fixable:
+                report.llm_used = True
+                verify_with_llm(cfg, report)
+
+            # Re-sync the index and vectors: pulled memory edits, and any files
+            # the model just updated, get re-embedded here.
+            plan = build_plan(cfg, mode=PlanMode.RUN, use_llm=False, progress=lambda m: None)
+            pipeline_report = apply_plan(cfg, plan, progress=lambda m: None, record_audit=False)
+
+            save_baseline(cfg, report.head, len(report.changed))
+            store = VectorStore(cfg)
+            audit_log.record(
+                cfg,
+                store,
+                audit_log.simple_event(
+                    "refresh",
+                    f"refresh @ {report.head[:12]}: {len(report.changed)} code change(s), "
+                    f"{len(report.affected)} memory(ies) affected, {report.updated} updated",
+                    units=len(report.affected),
+                    files_written=report.updated,
+                    vectors=pipeline_report.vector_count,
+                ),
+            )
+    except MemdexError as exc:
+        _fail(exc)
+        return
+
+    output.refresh_report(report, llm_used=report.llm_used)
+    resync = (
+        f"{pipeline_report.embeddings_generated} re-embedded"
+        if pipeline_report.embeddings_generated
+        else "no re-embedding needed"
+    )
+    from memdex.util import plural as _plural
+
+    output.step(
+        f"Memory re-indexed ({_plural(pipeline_report.vector_count, 'memory', 'memories')}"
+        f" · {resync})"
+    )
+    output.step(f"Baseline advanced to {report.head[:12]}")
+    if report.llm_used or not (report.affected or report.dead):
+        output.info("")
+    elif fixable:
+        output.info(
+            "\nRun [accent]memdex refresh --llm[/accent] to have the model bring the "
+            "flagged memories up to date.\n"
+        )
+    else:
+        output.note(
+            "\nThe flagged memories live in readonly sources (.claude/, AGENTS.md, …) — "
+            "Memdex never rewrites those. Update them by hand and refresh again.\n"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -291,13 +448,23 @@ def _bootstrap(cfg: MemdexConfig, dry_run: bool) -> None:
     from memdex.bootstrap import generate_seed_memory
 
     if not cfg.llm.is_usable:
+        if not cfg.abs_index_path.exists():
+            # No LLM and no memory: seed a template for the user's own assistant.
+            if dry_run:
+                output.info(
+                    f"\nWould create [accent]{cfg.index_path}[/accent] — a template your AI "
+                    "assistant fills in (no LLM configured).\n"
+                )
+                return
+            _write_template(cfg)
+            return
         _fail(
             ConfigError(
-                "Bootstrap needs an LLM with a large context window.",
+                f"No LLM is configured and {cfg.index_path} already exists.",
                 hint=(
-                    "Set llm.enabled: true and llm.model in .memdex/config.yaml.\n"
-                    "For Ollama: `ollama pull qwen2.5:14b` (a high-context model works best),\n"
-                    "then re-run `memdex bootstrap`."
+                    "Bootstrap generates memory where none exists. To improve what is there,\n"
+                    "edit the files under memory/ (or ask your AI assistant to) and run\n"
+                    "`memdex run` — or configure llm in .memdex/config.yaml for model help."
                 ),
             )
         )

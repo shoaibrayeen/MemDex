@@ -297,6 +297,7 @@ def apply_plan(
     plan: MemoryPlan,
     progress: Progress = NOOP,
     store: VectorStore | None = None,
+    record_audit: bool = True,
 ) -> RunReport:
     report = plan.report
     registry: Registry = plan.registry
@@ -364,7 +365,8 @@ def apply_plan(
     registry.save(cfg.metadata_dir)
     _write_run_snapshot(cfg, plan)
 
-    audit_log.record(cfg, store, audit_log.event_from_report(report, report.vector_count))
+    if record_audit:
+        audit_log.record(cfg, store, audit_log.event_from_report(report, report.vector_count))
     return report
 
 

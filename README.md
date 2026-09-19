@@ -1,6 +1,6 @@
 # Memdex
 
-**A local-first memory optimizer for AI coding assistants.**
+**A local-first memory optimizer for AI coding assistants.** `v1.0.0-beta`
 
 Memdex turns the large, unstructured memory your AI assistant accumulates —
 `MEMORY.md`, `memory/`, `AGENTS.md`, `.claude/`, `.cursor/` — into a small searchable index
@@ -202,6 +202,7 @@ because it grows by one line per memory rather than by one section of prose.
 | `memdex search "<question>"` | Find memories semantically |
 | `memdex compact` | Squeeze duplicates and redundancy out of organized memory |
 | `memdex index` | Regenerate `MEMORY.md` and refresh the search index only |
+| `memdex refresh` | Re-check memory against code that changed since the last refresh |
 | `memdex bootstrap` | Write a first memory from your codebase (needs an LLM) |
 | `memdex status` | What Memdex knows about this project |
 | `memdex history` | Token savings and activity over time, in the terminal |
@@ -300,29 +301,73 @@ Run without --dry-run to apply.
 Memories flagged as obsolete are **reported, never deleted** — Memdex does not
 decide what you have stopped believing.
 
-### `memdex bootstrap` — when there is no memory yet
+### `memdex refresh` — after you pull
 
-If a project has no memory at all, there is nothing to optimize, so `memdex run`
-offers to create some:
+Several teams commit to the same repository, and memory written last month can
+describe code that changed or vanished since. `memdex refresh` compares the
+working tree (pulled commits *and* your uncommitted edits) against the last
+refresh's git baseline and reports which memories reference the code that moved:
+
+```
+$ git pull && memdex refresh
+
+✓ Compared against a1b2c3d4e5f6 (from 2026-09-12): 7 code changes
+! 2 memories reference code that changed:
+    · ElasticSearch configuration details — ElasticSearchConfig.java
+    · Application entry point — Main.java
+! 1 memory cites files that no longer exist:
+    · Legacy importer — legacy/importer.py
+✓ Memory re-indexed (31 memories · 2 re-embedded)
+✓ Baseline advanced to d4e5f6a7b8c9
+
+Run memdex refresh --llm to have the model bring the flagged memories up to date.
+```
+
+Deterministically it only *flags* — rewriting what a memory says is never an
+automatic edit. With `--llm`, each affected memory is shown the current code and
+the model decides per memory: keep it, update it (applied with a backup first,
+only to files Memdex generated), or mark it outdated (report-only). Either way
+the run ends with a re-index, so memory files teammates edited are re-embedded
+too, and the whole thing lands in `memdex history` as a `refresh` event.
+
+The first refresh just records the baseline commit and runs the
+dead-reference scan. `--since <rev>` compares against any revision instead, and
+`--dry-run` reports without writing. To make it automatic after every pull:
+
+```bash
+printf '#!/bin/sh\nmemdex refresh --no-llm\n' > .git/hooks/post-merge && chmod +x .git/hooks/post-merge
+```
+
+### When there is no memory yet
+
+If a project has no memory at all, there is nothing to optimize — so Memdex
+seeds some, and it has two ways to do it:
+
+**Without any LLM (the default).** Your coding assistant — Claude Code, Cursor,
+Codex — already reads this repository, so it can write the memories itself.
+`memdex run` (or `memdex bootstrap`) creates a `MEMORY.md` template whose
+instructions are addressed to the assistant:
 
 ```
 ! No project memory found in the configured sources.
+✓ Created MEMORY.md — a template for your AI assistant to fill
 
-Memdex can write a first MEMORY.md by reading your codebase, but that needs an
-LLM with a large context window. Configure one in .memdex/config.yaml:
+Next, ask your coding assistant (Claude Code, Cursor, Codex, …):
 
-  llm:
-    enabled: true
-    provider: ollama
-    model: qwen2.5:14b
-
-Then run: memdex bootstrap
+  1  Read MEMORY.md and fill each section with real memories from this codebase
+  2  Run memdex run to organize, index and embed them
 ```
 
-Bootstrap reads a bounded slice of the repository — READMEs, manifests, a file
-tree, entry-point heads, within `llm.bootstrap_context_tokens` — and writes seed
-memories that `memdex run` then maintains like any other. Prefer a high-context
-model; the more of your project it can see at once, the better the result.
+The template's instructions live in HTML comments and its empty sections in
+`_(none yet)_` placeholders — both are stripped when Memdex indexes the file, so
+scaffolding never becomes memory. Running `memdex run` before the template is
+filled just says so; nothing junk gets indexed. No API key, no model config.
+
+**With an LLM (`memdex bootstrap`).** Configure `llm` in `.memdex/config.yaml`
+(Ollama, LM Studio, OpenAI) and bootstrap reads a bounded slice of the
+repository — READMEs, manifests, a file tree, entry-point heads, within
+`llm.bootstrap_context_tokens` — and writes the seed memories directly. Prefer a
+high-context model; the more of your project it sees at once, the better.
 
 ### `memdex restore` and `memdex clean`
 
@@ -655,6 +700,13 @@ which one is unhappy.
 | Search results look wrong after a config change | `memdex index` rebuilds the vectors |
 
 ---
+
+## Versioning
+
+Memdex follows semantic versioning; the current release is **v1.0.0-beta**
+(package metadata: `1.0.0b0`). Beta means the CLI surface and config schema are
+settling — anything that changes is recorded in [changelog.html](changelog.html),
+in the same commit as the change itself.
 
 ## License
 

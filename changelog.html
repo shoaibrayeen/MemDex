@@ -100,8 +100,8 @@
 
   <section class="release">
     <div class="release-head">
-      <h2>0.1.0</h2>
-      <span class="pill">initial release</span>
+      <h2>1.0.0-beta</h2>
+      <span class="pill">beta release</span>
       <span class="date">19 September 2026</span>
     </div>
     <p class="summary">
@@ -229,6 +229,22 @@
       <h3>Packaging and providers</h3>
       <ul>
         <li>
+          <span class="tag add">add</span><span class="what">Assistant-driven bootstrap (no LLM needed)</span>
+          <span class="why">With no memory and no LLM configured, <code>memdex run</code> and
+          <code>memdex bootstrap</code> seed a MEMORY.md template addressed to the coding assistant
+          already working in the repo: fill the sections, run <code>memdex run</code>. Template
+          instructions live in HTML comments and unfilled placeholders in a fixed marker — both are
+          stripped at indexing time, so scaffolding never becomes memory.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what"><code>memdex refresh</code> — memory follows the code</span>
+          <span class="why">Compares the working tree against the last refresh's git baseline (pulled
+          commits and local edits alike), flags memories that cite changed or deleted files, and with
+          <code>--llm</code> lets the model keep/update/mark-outdated each one — updates apply only to
+          Memdex-generated files, after a backup. Ends with a re-index so pulled memory edits are
+          re-embedded. Built for repositories several teams commit to.</span>
+        </li>
+        <li>
           <span class="tag add">add</span><span class="what">Docker image and compose file</span>
           <span class="why">A slim image whose entrypoint is the CLI; the target project mounts at
           <code>/workspace</code>, a named volume keeps the one-time embedding-model download, and the
@@ -355,6 +371,7 @@
           <tr><td>Dependencies</td><td>typer, rich, pyyaml, chromadb, httpx (tiktoken optional)</td></tr>
           <tr><td>Vector store</td><td>ChromaDB, embedded and local, telemetry off</td></tr>
           <tr><td>Network in default mode</td><td>None, enforced by a test</td></tr>
+          <tr><td>Version</td><td>1.0.0-beta (PEP 440: 1.0.0b0)</td></tr>
           <tr><td>Tests</td><td>343, fully offline, about five seconds</td></tr>
         </tbody>
       </table>

@@ -34,6 +34,10 @@ class DeterministicOptimizer:
 
             if not unit.frontmatter_locked:
                 unit.body = compress(unit.body)
+                if not unit.body.strip():
+                    # Nothing but scaffolding — an unfilled template section, a
+                    # comment-only block. It was never a memory; drop it.
+                    continue
                 unit.obsolete = is_obsolete(unit)
                 unit.category = categorize(unit)
                 unit.token_count = counter.count(unit.body)

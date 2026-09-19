@@ -183,3 +183,28 @@ class TestSplitOversized:
         memory = unit("Big", "alpha " * 500)
         pieces = split_oversized(memory, Thresholds(max_file_tokens=10), HeuristicCounter())
         assert pieces == [memory]
+
+
+class TestScaffoldingStripping:
+    def test_html_comments_are_removed(self):
+        assert compress("Real fact.\n\n<!-- a hint for the assistant -->\n") == "Real fact."
+
+    def test_multiline_comment_blocks_are_removed(self):
+        body = "<!--\nfill me\nplease\n-->\n\nActual memory content here."
+        assert compress(body) == "Actual memory content here."
+
+    def test_inline_comments_keep_surrounding_text(self):
+        assert compress("Before <!-- gone --> after.") == "Before  after."
+
+    def test_comments_inside_fences_are_code(self):
+        body = "```html\n<!-- keep me -->\n```"
+        assert compress(body) == body
+
+    def test_placeholders_are_removed(self):
+        assert compress("_(none yet)_") == ""
+        assert compress("- _(none yet)_") == ""
+
+    def test_comment_stripping_is_a_fixed_point(self):
+        body = "<!-- x -->\nReal.\n\n_(none yet)_\n\n<!--\nblock\n-->"
+        once = compress(body)
+        assert compress(once) == once == "Real."

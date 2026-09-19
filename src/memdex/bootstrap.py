@@ -256,3 +256,94 @@ def generate_seed_memory(
         + "\n",
     )
     return len(units)
+
+
+# ---------------------------------------------------------------------------
+# The assistant-driven template: bootstrap without any LLM of Memdex's own.
+# ---------------------------------------------------------------------------
+ASSISTANT_TEMPLATE = """<!-- memdex:template — your AI coding assistant fills this file. -->
+# Project Memory
+
+<!--
+AI assistant: this file is the seed for this repository's Memdex memory.
+
+Do this, in order:
+1. Explore the codebase — manifests, entry points, configuration, README, CI.
+2. Replace every "_(none yet)_" below with short factual memories: 1-3 lines
+   each, technical, specific to THIS repository — decisions, constraints,
+   commands, versions, gotchas. Use ## and ### headings, one topic per section.
+   State only what the code supports; never invent.
+3. When finished, run:
+
+       memdex run
+
+   Memdex splits this file into memory/<category>/*.md, rewrites MEMORY.md as a
+   small index, and embeds everything into the local vector store.
+4. From then on: read MEMORY.md first, recall with
+   `memdex search "<question>"`, and run `memdex refresh` after pulling code.
+
+These HTML comments are stripped automatically when Memdex indexes the file —
+leave them in place.
+-->
+
+## Project facts
+
+<!-- What this service is, the stack, entry points, how to run and test it. -->
+
+_(none yet)_
+
+## Architecture
+
+<!-- Components, boundaries, data flow, storage — and why they are shaped this way. -->
+
+_(none yet)_
+
+## Decisions
+
+<!-- Choices made and their rationale, so they are not relitigated by accident. -->
+
+_(none yet)_
+
+## Conventions
+
+<!-- Project rules that are not obvious from the code alone. -->
+
+_(none yet)_
+
+## Gotchas
+
+<!-- Non-obvious traps confirmed the hard way: env quirks, flaky tests, ordering. -->
+
+_(none yet)_
+
+## Work in progress
+
+<!-- Multi-session work: current state, pending decisions, next steps, with dates. -->
+
+_(none yet)_
+"""
+
+
+def write_assistant_template(cfg: MemdexConfig) -> Path:
+    """Seed MEMORY.md for the user's own AI assistant to fill.
+
+    This is bootstrap for people who configure no LLM at all: the assistant that
+    already works in the repository writes the memories, Memdex indexes them.
+    Refuses to touch an existing file — it only ever creates.
+    """
+    target = cfg.abs_index_path
+    if target.exists():
+        raise MemdexError(
+            f"{cfg.index_path} already exists — the template would overwrite it.",
+            hint="The template is only for projects with no memory yet. Run `memdex run` instead.",
+        )
+    from memdex.backup import create_backup
+    from memdex.models import FileOp
+
+    create_backup(
+        cfg,
+        [FileOp(path=cfg.rel_index_path, action="write", reason="assistant template")],
+        reason="seed",
+    )
+    atomic_write(target, ASSISTANT_TEMPLATE)
+    return cfg.rel_index_path

@@ -244,6 +244,54 @@ def history_table(events: list[AuditEvent]) -> None:
     console.print()
 
 
+def refresh_report(report, llm_used: bool) -> None:
+    """What moved in the code, and which memories feel it."""
+    if report.first_refresh:
+        console.print(
+            f"[ok]✓[/ok] Baseline set to [accent]{report.head[:12]}[/accent] — future refreshes "
+            "compare against this commit"
+        )
+    else:
+        when = f" (from {report.baseline_at[:10]})" if report.baseline_at else ""
+        console.print(
+            f"[ok]✓[/ok] Compared against [accent]{report.baseline[:12]}[/accent]{when}: "
+            f"{plural(len(report.changed), 'code change')}"
+        )
+        for change in report.changed[:8]:
+            note(f"    · {change.label}")
+        if len(report.changed) > 8:
+            note(f"    … and {len(report.changed) - 8} more")
+
+    if report.affected:
+        console.print(
+            f"[warn]![/warn] {plural(len(report.affected), 'memory', 'memories')} reference "
+            "code that changed:"
+        )
+        for item in report.affected[:8]:
+            files = ", ".join(Path(c.path).name for c in item.files[:3])
+            note(f"    · {item.unit.title} — {files}")
+    elif not report.first_refresh:
+        console.print("[ok]✓[/ok] No memory references the changed code")
+
+    if report.dead:
+        console.print(
+            f"[warn]![/warn] {plural(len(report.dead), 'memory', 'memories')} cite files "
+            "that no longer exist:"
+        )
+        for item in report.dead[:8]:
+            note(f"    · {item.unit.title} — {', '.join(item.dead_refs[:3])}")
+
+    if llm_used and (report.kept or report.updated or report.obsolete):
+        console.print(
+            f"[ok]✓[/ok] Model review: {report.updated} updated · {report.kept} kept · "
+            f"{len(report.obsolete)} flagged outdated"
+        )
+        for title in report.obsolete[:5]:
+            note(f"    · outdated: {title}")
+    for message in report.warnings:
+        warn(message)
+
+
 def doctor_table(rows: list[tuple[str, bool, str]]) -> None:
     console.print("\n[head]Memdex doctor[/head]\n")
     for name, ok, detail in rows:
