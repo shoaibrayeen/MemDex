@@ -1,0 +1,49 @@
+---
+description: How to work in the Memdex repository and how to use its project memory
+globs: ["**/*.py", "**/*.md", "setup.sh"]
+alwaysApply: true
+---
+
+# Memdex
+
+A local-first CLI that turns sprawling AI-assistant memory into a small index
+plus a local ChromaDB vector store. Python 3.10+, managed with `uv`.
+
+## Use the project's own memory
+
+This repository is indexed by Memdex. Read `MEMORY.md` first — it is a small
+index of titles, one-line descriptions and paths. Open only the memory files you
+need, and use `memdex search "<question>" --top-k 3` to find them by meaning.
+Do not pull the whole `memory/` tree into context.
+
+`MEMORY.md` is generated. Edit the files under `memory/` instead, then run
+`memdex run` so the index and the vectors follow.
+
+## Commands
+
+```bash
+uv sync --all-extras
+uv run pytest
+uv run ruff check .
+uv run memdex --help
+```
+
+## Rules for changes
+
+- Never alter the meaning of a user's memory. Compression removes conversational
+  filler and repeated paragraphs only — no paraphrasing, no reflowing, and never
+  anything inside a code fence.
+- `pipeline.build_plan` is pure: it must not write files or open the vector
+  store. All side effects belong in `pipeline.apply_plan`. `--dry-run` depends
+  on this.
+- Only `store.py` may import `chromadb`.
+- Always pass explicit `embeddings=` / `query_embeddings=` to Chroma. Never
+  `query_texts`, which triggers a hidden model download.
+- Keep re-runs a no-op: no timestamps in generated files, output paths are pure
+  functions of category and title, and the diff compares bytes against disk.
+- Readonly sources (`.claude/`, `.cursor/`, `.ai/`, `.agent/`) are indexed but
+  never written to.
+- Degrade rather than abort: a missing embedding model falls back to the hash
+  embedder, and any LLM failure keeps the deterministic result and exits 0.
+- Tests never touch the network; fixtures use `embedding.provider: hash`.
+- Line length 100, ruff-clean, type hints on public functions.

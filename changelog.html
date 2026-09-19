@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Memdex Changelog</title>
+<meta name="description" content="Release notes and change details for Memdex, a local-first memory optimizer for AI coding assistants." />
+<style>
+  :root {
+    --bg: #fbfbfa; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6a66;
+    --line: #e6e4df; --accent: #2f6f5e; --accent-soft: #dcebe5;
+    --add: #2f6f5e; --fix: #b4762a; --note: #4a6ba8; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171614; --panel: #201e1c; --ink: #f2efe9; --muted: #a3a099;
+      --line: #322f2b; --accent: #7fc4ac; --accent-soft: #23362f;
+      --add: #7fc4ac; --fix: #d9a25a; --note: #8fadde;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #171614; --panel: #201e1c; --ink: #f2efe9; --muted: #a3a099;
+    --line: #322f2b; --accent: #7fc4ac; --accent-soft: #23362f;
+    --add: #7fc4ac; --fix: #d9a25a; --note: #8fadde;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15.5px/1.65 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 48px 16px 80px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 8px; }
+  h1 { font-size: 27px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .tagline { color: var(--muted); margin: 0; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 14px; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; }
+  code { background: var(--accent-soft); color: var(--accent); padding: 1.5px 6px; border-radius: 5px; }
+  a { color: var(--accent); }
+
+  .release { margin-top: 40px; }
+  .release-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  h2 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .date { color: var(--muted); font-size: 13.5px; }
+  .pill {
+    font-size: 11.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+    padding: 2px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+  }
+  .summary { color: var(--muted); margin: 2px 0 20px; }
+
+  .group { margin-bottom: 26px; }
+  h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); font-weight: 600; margin: 0 0 10px;
+  }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 13px 16px; margin-bottom: 8px;
+  }
+  li .what { font-weight: 600; }
+  li .why { color: var(--muted); display: block; margin-top: 3px; font-size: 14.5px; }
+  .tag {
+    display: inline-block; min-width: 42px; text-align: center; font-size: 11px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; margin-right: 10px; vertical-align: 1px;
+  }
+  .tag.add { color: var(--add); }
+  .tag.fix { color: var(--fix); }
+  .tag.note { color: var(--note); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 4px; }
+  th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em;
+       color: var(--muted); font-weight: 600; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: 13.5px; }
+  .toggle {
+    position: fixed; top: 16px; right: 16px; background: var(--panel); color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; font-size: 12.5px;
+    cursor: pointer; font-family: inherit;
+  }
+  .toggle:hover { color: var(--ink); }
+  @media (max-width: 600px) { .wrap { padding-top: 60px; } }
+</style>
+</head>
+<body>
+<button class="toggle" id="theme" type="button">theme</button>
+<div class="wrap">
+
+  <header>
+    <h1>Memdex changelog</h1>
+    <p class="tagline">A local-first memory optimizer for AI coding assistants.</p>
+    <p class="meta">
+      Every entry records what changed and why. Keep this file updated in the same
+      commit as the change it describes.
+    </p>
+  </header>
+
+  <section class="release">
+    <div class="release-head">
+      <h2>0.1.0</h2>
+      <span class="pill">initial release</span>
+      <span class="date">19 September 2026</span>
+    </div>
+    <p class="summary">
+      First working version: discovery, deterministic optimization, a small generated
+      index, local embeddings, a local ChromaDB store, semantic search, backups, an
+      activity log and an optional LLM layer.
+    </p>
+
+    <div class="group">
+      <h3>Core pipeline</h3>
+      <ul>
+        <li>
+          <span class="tag add">add</span><span class="what">Memory discovery limited to configured sources</span>
+          <span class="why">Reads only <code>MEMORY.md</code>, <code>memory/</code>, <code>.memory/</code> and the
+          assistant directories listed in config. A README is documentation, not memory, so a
+          repository-wide markdown sweep was deliberately not implemented.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Fence-aware markdown parsing</span>
+          <span class="why">Headings inside fenced code blocks never split a memory, and a leading
+          <code>---</code> is only frontmatter when a closing delimiter exists — otherwise it is a
+          horizontal rule.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Splitting at heading boundaries only</span>
+          <span class="why">Sections split down to their leaves so retrieval returns one topic rather
+          than a whole chapter. Sections below <code>min_unit_tokens</code> fold back into their parent,
+          heading and all, so nothing is lost. A paragraph is never cut in half.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Deduplication, exact and near</span>
+          <span class="why">Exact matches on normalized text, near matches via a word-overlap
+          prefilter confirmed by sequence similarity. Code fences keep their exact text, so two
+          snippets differing only in a variable never merge.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Conservative compression</span>
+          <span class="why">Removes conversational filler, collapses blank-line runs and drops
+          verbatim repeated paragraphs — nothing else. It never paraphrases, never reflows and never
+          touches the inside of a fence.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Stable memory IDs</span>
+          <span class="why">A four-rung adoption ladder — frontmatter ID, content hash, title plus
+          category, then a fresh ID — so <code>mem_a8f31c</code> survives a move, a rename or an edit.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Plan and apply split</span>
+          <span class="why"><code>build_plan</code> computes the whole result without writing anything
+          or opening the vector store; <code>apply_plan</code> performs every side effect. This is what
+          makes <code>--dry-run</code> a real preview rather than a best effort.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Storage and retrieval</h3>
+      <ul>
+        <li>
+          <span class="tag add">add</span><span class="what">Embedded local ChromaDB</span>
+          <span class="why">Persistent client at <code>.memdex/chroma</code>, cosine space, telemetry
+          off, no server process. All Chroma calls are confined to <code>store.py</code>.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Three embedding providers</span>
+          <span class="why"><code>local</code> (bundled MiniLM ONNX, one download then offline),
+          <code>hash</code> (pure standard library, works air-gapped) and <code>ollama</code>. A failure
+          in any of them falls back to <code>hash</code> with a warning rather than failing the run.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Semantic search</span>
+          <span class="why"><code>memdex search</code> with <code>--top-k</code> and
+          <code>--category</code>, scored as <code>1 − cosine distance</code>.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Activity log in its own collection</span>
+          <span class="why">Every applying command records one row. It survives <code>memdex clean</code>
+          on purpose — wiping the database is itself an event worth remembering — and only
+          <code>clean --all</code> removes it.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Commands and interface</h3>
+      <ul>
+        <li>
+          <span class="tag add">add</span><span class="what">Twelve commands</span>
+          <span class="why"><code>init</code>, <code>run</code>, <code>search</code>,
+          <code>compact</code>, <code>index</code>, <code>bootstrap</code>, <code>status</code>,
+          <code>history</code>, <code>ui</code>, <code>doctor</code>, <code>restore</code>,
+          <code>clean</code>.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Coding-project validation and monorepo prompt</span>
+          <span class="why"><code>init</code> refuses to set up in a folder that is not a code project,
+          and asks whether a subdirectory user meant the repository root. Other commands walk up to
+          find <code>.memdex/</code>, the way git does.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Bootstrap for projects with no memory</span>
+          <span class="why">Reads a token-budgeted slice of the repository and asks a high-context LLM
+          for seed memories, which <code>run</code> then maintains like any others.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Backups, restore and dry runs</span>
+          <span class="why">Every applying command copies what it will touch to
+          <code>.memdex/backups/&lt;timestamp&gt;/</code> with a manifest. Restore is itself reversible.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">Local dashboard, and its terminal twin</span>
+          <span class="why">A read-only page on 127.0.0.1 built on the standard library — no CDN, no
+          build step. <code>memdex history</code> and <code>memdex status</code> show the same data in
+          the terminal, and <code>setup.sh --no-ui</code> installs without it.</span>
+        </li>
+        <li>
+          <span class="tag add">add</span><span class="what">One-shot <code>setup.sh</code></span>
+          <span class="why">Installs uv if needed, installs the CLI, verifies it and prints a
+          quickstart. <code>--dev</code> also runs the tests and the linter.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Fixed during development</h3>
+      <p class="summary" style="margin-bottom: 12px">
+        Found by running Memdex against its own repository and the bundled example.
+      </p>
+      <ul>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Category keywords matched inside unrelated words</span>
+          <span class="why">Substring matching meant <code>ci</code> matched inside “de<b>ci</b>sions”
+          and “sequen<b>ci</b>ng”, filing architecture decisions under development. Keywords now match
+          on word boundaries, with an optional trailing “s” so a <code>## Projects</code> heading still
+          counts as <code>project</code>.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Token savings measured the wrong thing</span>
+          <span class="why">Counting bytes on disk showed memory getting <em>larger</em>, because the
+          index is new text. Context cost (everything loaded before, the index alone after) and content
+          size are now reported as two separate, clearly labelled numbers.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what">A document's title polluted every breadcrumb</span>
+          <span class="why">A file opening with <code># Project Memory</code> made “project” a feature of
+          every memory in it. A sole top-level heading that reads like a document title is now unwrapped;
+          a sole <code># Architecture</code>, which really is context for what follows, is kept.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Descriptions cut at line wraps and mangled identifiers</span>
+          <span class="why">The first <em>line</em> was being used instead of the first sentence, and the
+          emphasis stripper turned <code>tenant_id</code> into <code>tenantid</code>. Descriptions now read a
+          whole paragraph, and only paired emphasis markers are removed.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Titles were left out of the vector</span>
+          <span class="why">“how do I run the tests” ranked a naming convention that merely mentioned
+          <code>_test.go</code> above the actual Testing memory. The title and breadcrumb are now embedded
+          with the body, which fixed that query and improved every other one measured.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Readonly files produced one index line per section</span>
+          <span class="why">Five entries all pointing at <code>.claude/CLAUDE.md</code> gave a reader no way
+          to find the right part of a file Memdex cannot split. The index now lists each readonly file once,
+          under its own title; search still returns individual sections.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Code-only memories had blank descriptions</span>
+          <span class="why">A section that is nothing but commands now describes itself with its first
+          command instead of an empty index line.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Compact detail lines printed under the wrong heading</span>
+          <span class="why">Obsolete memories were listed beneath “Similar, kept apart”. Each finding now
+          prints its own details directly under its own heading.</span>
+        </li>
+        <li>
+          <span class="tag fix">fix</span><span class="what"><code>memdex index</code> could have deleted the memory tree</span>
+          <span class="why">Index mode plans no memory files, so the diff concluded every existing one was
+          obsolete. It now runs in an index-only mode that cannot produce a delete.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Known limitations</h3>
+      <ul>
+        <li>
+          <span class="tag note">note</span><span class="what">Moving, retitling and rewriting at once loses an ID</span>
+          <span class="why">All three adoption signals change together, so the memory is treated as new.</span>
+        </li>
+        <li>
+          <span class="tag note">note</span><span class="what">The default embedder is not covered by tests</span>
+          <span class="why">The suite is offline by design, so it exercises the <code>hash</code> provider.
+          The <code>local</code> path is verified by hand after changes to <code>embed/</code> or
+          <code>store.py</code>.</span>
+        </li>
+        <li>
+          <span class="tag note">note</span><span class="what">LLM mode can rename memories between runs</span>
+          <span class="why">A renamed memory moves file, so <code>--llm</code> runs are not byte-identical
+          the way deterministic runs are.</span>
+        </li>
+        <li>
+          <span class="tag note">note</span><span class="what">Setext headings are not recognized</span>
+          <span class="why">Only ATX headings (<code>#</code> … <code>######</code>) mark a boundary.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>At a glance</h3>
+      <table>
+        <thead>
+          <tr><th>Area</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Language</td><td>Python 3.10+, managed with uv</td></tr>
+          <tr><td>Dependencies</td><td>typer, rich, pyyaml, chromadb, httpx (tiktoken optional)</td></tr>
+          <tr><td>Vector store</td><td>ChromaDB, embedded and local, telemetry off</td></tr>
+          <tr><td>Network in default mode</td><td>None, enforced by a test</td></tr>
+          <tr><td>Tests</td><td>320, fully offline, about five seconds</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Conventions: <span class="tag add">add</span> new behavior ·
+    <span class="tag fix">fix</span> corrected behavior ·
+    <span class="tag note">note</span> a limitation worth knowing.
+    Dates are the date the change landed.
+  </footer>
+</div>
+
+<script>
+  (function () {
+    const button = document.getElementById('theme');
+    const root = document.documentElement;
+    let stored = null;
+    try { stored = localStorage.getItem('memdex-theme'); } catch (e) { /* private mode */ }
+    if (stored === 'light' || stored === 'dark') root.setAttribute('data-theme', stored);
+
+    button.addEventListener('click', function () {
+      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const current = root.getAttribute('data-theme') || (dark ? 'dark' : 'light');
+      const next = current === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('memdex-theme', next); } catch (e) { /* ignore */ }
+    });
+  })();
+</script>
+</body>
+</html>

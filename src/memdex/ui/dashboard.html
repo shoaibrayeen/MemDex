@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Memdex</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6a66;
+    --line: #e6e4df; --accent: #2f6f5e; --accent-soft: #dcebe5; --warn: #b4762a;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171614; --panel: #201e1c; --ink: #f2efe9; --muted: #a3a099;
+      --line: #322f2b; --accent: #7fc4ac; --accent-soft: #23362f; --warn: #d9a25a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin: 24px 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .card .value { font-size: 26px; font-weight: 600; margin-top: 6px; letter-spacing: -0.02em; }
+  .card .foot { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; }
+  section h2 { font-size: 14px; margin: 0 0 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  canvas { width: 100%; height: 240px; display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px;
+       text-transform: uppercase; letter-spacing: .05em; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; padding-right: 0; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px;
+         background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .tag.clean { background: transparent; color: var(--warn); border: 1px solid var(--warn); }
+  .bars { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 40px; align-items: center; gap: 10px; font-size: 13px; }
+  .bar { height: 8px; border-radius: 999px; background: var(--accent); min-width: 2px; }
+  .empty { color: var(--muted); font-size: 14px; }
+  footer { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+  code { background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Memdex</h1>
+    <span class="sub mono" id="project"></span>
+  </header>
+  <div class="sub">Local memory index · read-only view of <code>.memdex/</code></div>
+
+  <div class="grid" id="stats"></div>
+
+  <section>
+    <h2>Token reduction over time</h2>
+    <canvas id="chart" width="1000" height="240"></canvas>
+    <div class="empty" id="chart-empty" hidden>No optimization runs recorded yet — run <code>memdex run</code>.</div>
+  </section>
+
+  <section>
+    <h2>Memories by category</h2>
+    <div class="bars" id="categories"></div>
+  </section>
+
+  <section>
+    <h2>Activity log</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>When</th><th>Event</th><th class="num">Before</th>
+          <th class="num">After</th><th class="num">Saved</th><th>Detail</th>
+        </tr>
+      </thead>
+      <tbody id="audit"></tbody>
+    </table>
+  </section>
+
+  <footer>Everything shown here is also available in the terminal: <code>memdex status</code>, <code>memdex history</code>.</footer>
+</div>
+
+<script>
+const fmt = n => (n || 0).toLocaleString();
+const el = id => document.getElementById(id);
+
+async function load() {
+  const [summary, audit] = await Promise.all([
+    fetch('/api/summary').then(r => r.json()),
+    fetch('/api/audit').then(r => r.json())
+  ]);
+  renderSummary(summary);
+  renderCategories(summary.categories || {});
+  renderAudit(audit);
+  drawChart(audit.filter(e => e.tokens_before > 0), summary.tokens_estimated);
+}
+
+function renderSummary(s) {
+  el('project').textContent = s.project_path || '';
+  const last = s.last_run || {};
+  const approx = s.tokens_estimated ? '~' : '';
+  const cards = [
+    { label: 'Memories', value: fmt(s.memories), foot: `${fmt(s.files)} files in ${s.memory_dir}` },
+    { label: 'Vectors', value: fmt(s.vectors), foot: 'local ChromaDB' },
+    {
+      label: 'Last reduction',
+      value: last.pct_saved != null ? last.pct_saved.toFixed(1) + '%' : '—',
+      foot: last.tokens_before
+        ? `${approx}${fmt(last.tokens_before)} → ${approx}${fmt(last.tokens_after)} tokens`
+        : 'no run yet'
+    },
+    { label: 'Mode', value: (last.mode_label || s.optimizer || '—').split(' / ')[0], foot: `embedding: ${s.embedding}` }
+  ];
+  el('stats').innerHTML = cards.map(c =>
+    `<div class="card"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="foot">${c.foot}</div></div>`
+  ).join('');
+}
+
+function renderCategories(categories) {
+  const entries = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) {
+    el('categories').innerHTML = '<div class="empty">No memories indexed yet.</div>';
+    return;
+  }
+  const max = Math.max(...entries.map(e => e[1]));
+  el('categories').innerHTML = entries.map(([name, count]) =>
+    `<div class="bar-row"><span>${name}</span>
+       <span class="bar" style="width:${Math.max(2, (count / max) * 100)}%"></span>
+       <span class="num">${count}</span></div>`
+  ).join('');
+}
+
+function renderAudit(events) {
+  const rows = [...events].reverse();
+  if (!rows.length) {
+    el('audit').innerHTML = '<tr><td colspan="6" class="empty">Nothing recorded yet.</td></tr>';
+    return;
+  }
+  el('audit').innerHTML = rows.map(e => {
+    const when = (e.at || '').replace('T', ' ').replace('Z', '');
+    const tag = e.event === 'clean' ? 'tag clean' : 'tag';
+    const saved = e.tokens_before ? e.pct_saved.toFixed(1) + '%' : '—';
+    return `<tr>
+      <td class="mono">${when}</td>
+      <td><span class="${tag}">${e.event}</span></td>
+      <td class="num">${e.tokens_before ? fmt(e.tokens_before) : '—'}</td>
+      <td class="num">${e.tokens_before ? fmt(e.tokens_after) : '—'}</td>
+      <td class="num">${saved}</td>
+      <td>${e.summary || ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function drawChart(events, estimated) {
+  const canvas = el('chart');
+  if (!events.length) { canvas.hidden = true; el('chart-empty').hidden = false; return; }
+
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 1000;
+  const cssHeight = 240;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const styles = getComputedStyle(document.documentElement);
+  const ink = styles.getPropertyValue('--ink').trim();
+  const muted = styles.getPropertyValue('--muted').trim();
+  const line = styles.getPropertyValue('--line').trim();
+  const accent = styles.getPropertyValue('--accent').trim();
+  const soft = styles.getPropertyValue('--accent-soft').trim();
+
+  const pad = { top: 18, right: 16, bottom: 28, left: 54 };
+  const w = cssWidth - pad.left - pad.right;
+  const h = cssHeight - pad.top - pad.bottom;
+  const max = Math.max(...events.map(e => e.tokens_before)) * 1.1 || 1;
+  const n = events.length;
+  const slot = w / n;
+  const barW = Math.min(34, slot * 0.34);
+
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.strokeStyle = line; ctx.fillStyle = muted;
+  ctx.font = '11px ui-monospace, Menlo, monospace'; ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (h / 4) * i;
+    const value = Math.round(max - (max / 4) * i);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + w, y); ctx.stroke();
+    ctx.fillText(value.toLocaleString(), pad.left - 8, y + 3);
+  }
+
+  events.forEach((e, i) => {
+    const cx = pad.left + slot * i + slot / 2;
+    const beforeH = (e.tokens_before / max) * h;
+    const afterH = (e.tokens_after / max) * h;
+    ctx.fillStyle = soft;
+    ctx.fillRect(cx - barW, pad.top + h - beforeH, barW, beforeH);
+    ctx.fillStyle = accent;
+    ctx.fillRect(cx, pad.top + h - afterH, barW, afterH);
+  });
+
+  ctx.strokeStyle = accent; ctx.lineWidth = 1.5; ctx.beginPath();
+  events.forEach((e, i) => {
+    const cx = pad.left + slot * i + slot / 2;
+    const y = pad.top + h - (e.pct_saved / 100) * h;
+    i === 0 ? ctx.moveTo(cx, y) : ctx.lineTo(cx, y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = ink; ctx.textAlign = 'center'; ctx.font = '11px ui-sans-serif, sans-serif';
+  events.forEach((e, i) => {
+    const cx = pad.left + slot * i + slot / 2;
+    const y = pad.top + h - (e.pct_saved / 100) * h;
+    ctx.beginPath(); ctx.arc(cx, y, 3, 0, Math.PI * 2); ctx.fill();
+    if (i === events.length - 1) ctx.fillText(e.pct_saved.toFixed(0) + '% saved', cx, y - 10);
+  });
+
+  ctx.fillStyle = muted; ctx.textAlign = 'left';
+  const note = estimated ? 'tokens (estimated) — before / after per run' : 'tokens — before / after per run';
+  ctx.fillText(note, pad.left, cssHeight - 8);
+}
+
+load();
+window.addEventListener('resize', () => load());
+</script>
+</body>
+</html>

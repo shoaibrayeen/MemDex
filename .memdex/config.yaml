@@ -1,0 +1,52 @@
+# Memdex configuration — everything here is local to this project.
+version: 1
+
+memory:
+  # Where project memory lives. A bare string means "managed": Memdex may
+  # reorganize it (always after a backup). mode: readonly means index-only —
+  # Memdex reads and searches it but never rewrites it.
+  sources:
+    - MEMORY.md
+    - memory/
+    - .memory/
+    - {path: AGENTS.md, mode: readonly}
+    - {path: .claude/, mode: readonly}
+    - {path: .cursor/, mode: readonly}
+    - {path: .ai/, mode: readonly}
+    - {path: .agent/, mode: readonly}
+
+  output:
+    index: MEMORY.md      # the small index an assistant loads first
+    directory: memory/    # where the actual memory files live
+
+embedding:
+  # local = bundled MiniLM ONNX model (one-time ~80MB download, then offline)
+  # hash  = pure-offline deterministic embedder, no downloads ever
+  # ollama = use a local Ollama embedding model
+  provider: local
+  model: default
+
+vector_store:
+  provider: chromadb
+  path: .memdex/chroma
+
+optimizer:
+  mode: deterministic     # deterministic (default) or llm
+  duplicate_similarity: 0.85
+  max_file_tokens: 1200
+  min_unit_tokens: 20
+
+llm:
+  enabled: false
+  provider: ollama        # ollama | lmstudio | openai-compatible
+  model: null             # e.g. qwen2.5:14b — prefer a high-context model
+  base_url: null          # defaults per provider
+  timeout: 30
+  bootstrap_context_tokens: 24000
+
+ui:
+  enabled: true
+  port: 7644
+
+audit:
+  enabled: true
