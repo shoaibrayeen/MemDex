@@ -365,7 +365,10 @@ def apply_plan(
     registry.save(cfg.metadata_dir)
     _write_run_snapshot(cfg, plan)
 
-    if record_audit:
+    # A no-op (nothing written, nothing re-embedded) is not an event worth a
+    # history row: teams run `memdex run` habitually, and the token chart should
+    # show work, not polling.
+    if record_audit and (not report.no_changes or report.embeddings_generated):
         audit_log.record(cfg, store, audit_log.event_from_report(report, report.vector_count))
     return report
 

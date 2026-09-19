@@ -141,10 +141,22 @@ class TestStatusAndHistory:
 
     def test_history_lists_runs_with_savings(self, runner, demo_project: Path):
         run(runner, "run")
+        # A compact that actually changes something earns a history row…
+        target = next(demo_project.glob("memory/*/database*.md"))
+        target.write_text(
+            target.read_text(encoding="utf-8") + "\nAlso runs a nightly vacuum job.\n",
+            encoding="utf-8",
+        )
         run(runner, "compact")
         output = run(runner, "history").output
         assert output.count("run") >= 1 and "compact" in output
         assert "%" in output
+
+    def test_a_noop_compact_reports_but_records_nothing(self, runner, demo_project: Path):
+        run(runner, "run")
+        result = run(runner, "compact")
+        assert "Memory Analysis" in result.output
+        assert "compact" not in run(runner, "history").output
 
     def test_history_is_empty_before_any_run(self, runner, demo_project: Path):
         assert "No activity recorded yet" in run(runner, "history").output

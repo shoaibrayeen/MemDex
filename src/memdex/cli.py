@@ -21,7 +21,7 @@ from memdex.errors import ConfigError, MemdexError
 from memdex.lock import acquire
 from memdex.models import PlanMode
 from memdex.project import ensure_code_project, find_base_dir, resolve_root
-from memdex.util import atomic_write
+from memdex.util import atomic_write, plural
 
 app = typer.Typer(
     name="memdex",
@@ -240,8 +240,18 @@ def _execute(cfg: MemdexConfig, mode: PlanMode, dry_run: bool, use_llm: bool | N
         _fail(exc)
         return
 
-    if report.no_changes:
-        output.note("\nMemory is already optimized — nothing changed.")
+    if report.no_changes and report.embeddings_generated == 0:
+        output.info("")
+        output.step(
+            "Nothing to sync — memory is unchanged since the last run; the index and "
+            f"vectors are up to date ({plural(report.units_final, 'memory', 'memories')}, "
+            f"{report.vector_count} vectors)."
+        )
+        for message in report.warnings:
+            output.warn(message)
+        output.info("")
+        return
+
     if mode is not PlanMode.COMPACT:
         output.token_block(report)
         output.info(f"\n  Memory files:\n    {report.units_final}")
@@ -386,21 +396,40 @@ def refresh(
             pipeline_report = apply_plan(cfg, plan, progress=lambda m: None, record_audit=False)
 
             save_baseline(cfg, report.head, len(report.changed))
-            store = VectorStore(cfg)
-            audit_log.record(
-                cfg,
-                store,
-                audit_log.simple_event(
-                    "refresh",
-                    f"refresh @ {report.head[:12]}: {len(report.changed)} code change(s), "
-                    f"{len(report.affected)} memory(ies) affected, {report.updated} updated",
-                    units=len(report.affected),
-                    files_written=report.updated,
-                    vectors=pipeline_report.vector_count,
-                ),
+
+            nothing_moved = (
+                not report.first_refresh
+                and not report.changed
+                and not report.affected
+                and not report.dead
+                and pipeline_report.no_changes
+                and pipeline_report.embeddings_generated == 0
             )
+            if not nothing_moved:
+                store = VectorStore(cfg)
+                audit_log.record(
+                    cfg,
+                    store,
+                    audit_log.simple_event(
+                        "refresh",
+                        f"refresh @ {report.head[:12]}: {len(report.changed)} code change(s), "
+                        f"{len(report.affected)} memory(ies) affected, {report.updated} updated",
+                        units=len(report.affected),
+                        files_written=report.updated,
+                        vectors=pipeline_report.vector_count,
+                    ),
+                )
     except MemdexError as exc:
         _fail(exc)
+        return
+
+    if nothing_moved:
+        output.step(
+            f"Nothing to refresh — no code changes since {report.baseline[:12]} and "
+            f"memory is already in sync "
+            f"({plural(pipeline_report.vector_count, 'memory', 'memories')})."
+        )
+        output.info("")
         return
 
     output.refresh_report(report, llm_used=report.llm_used)

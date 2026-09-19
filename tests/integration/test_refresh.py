@@ -407,3 +407,67 @@ class TestFixableCandidates:
         assert "tools/graph.json" in text
         assert "readonly sources" in text
         assert "refresh --llm" not in text
+
+
+class TestNothingToRefresh:
+    @pytest.fixture
+    def clean_repo(self, tmp_path: Path, monkeypatch) -> Path:
+        """A repo whose memory cites only files that exist — no flags anywhere."""
+        root = tmp_path / "clean"
+        (root / "src").mkdir(parents=True)
+        (root / "src" / "app.py").write_text("PORT = 8080\n", encoding="utf-8")
+        (root / "MEMORY.md").write_text(
+            "# Notes\n\n## Entry point\n\nThe service starts from src/app.py and serves "
+            "HTTP on port 8080 for every deployment environment we run.\n",
+            encoding="utf-8",
+        )
+        write_config(root)
+        git(root, "init", "-q")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "initial")
+        monkeypatch.chdir(root)
+        run_pytest_runner(root)
+        return root
+
+    def test_quiet_refresh_says_nothing_to_do(self, runner, clean_repo: Path):
+        run(runner, "refresh")  # sets the baseline
+        result = run(runner, "refresh")
+        text = flat(result.output)
+        assert "Nothing to refresh" in text
+        assert "no code changes since" in text
+
+    def test_quiet_refreshes_add_no_history_rows(self, runner, clean_repo: Path):
+        run(runner, "refresh")
+        before = run(runner, "history").output.count("refresh")
+        run(runner, "refresh")
+        run(runner, "refresh")
+        assert run(runner, "history").output.count("refresh") == before
+
+    def test_a_real_change_still_reports_normally(self, runner, clean_repo: Path):
+        run(runner, "refresh")
+        (clean_repo / "src" / "app.py").write_text("PORT = 9090\n", encoding="utf-8")
+        result = run(runner, "refresh")
+        assert "Nothing to refresh" not in result.output
+        assert "Entry point" in flat(result.output)
+
+
+class TestPatternSuffixesAreNotDeadRefs:
+    def test_placeholder_patterns_are_not_flagged(self, runner, tmp_path, monkeypatch):
+        """"dao/<x>_dao.go" documents a convention; "_dao.go" is not a missing file."""
+        root = tmp_path / "pat"
+        (root / "dao").mkdir(parents=True)
+        (root / "dao" / "user_dao.go").write_text("package dao\n", encoding="utf-8")
+        (root / "MEMORY.md").write_text(
+            "# Notes\n\n## Conventions\n\nDAO pattern: `dao/<x>_dao.go` holds the interface and "
+            "`<x>_dao_impl.go` the singleton implementation; suffix tests with `_test.go`.\n",
+            encoding="utf-8",
+        )
+        write_config(root)
+        git(root, "init", "-q")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "init")
+        monkeypatch.chdir(root)
+        run_pytest_runner(root)
+
+        result = run(runner, "refresh")
+        assert "no longer exist" not in flat(result.output)

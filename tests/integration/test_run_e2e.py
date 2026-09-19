@@ -158,8 +158,16 @@ class TestIdempotency:
 
         assert tree_hash(demo_project, "MEMORY.md", "memory") == before
         assert _ids(demo_project) == ids_before
-        assert "already optimized" in result.output
+        assert "Nothing to sync" in result.output
         assert len(list((demo_project / ".memdex" / "backups").iterdir())) == backups_before
+
+    def test_noop_runs_add_no_history_rows(self, runner, demo_project: Path):
+        """Habitual re-runs must not pollute the activity chart."""
+        run(runner, "run")
+        run(runner, "run")
+        run(runner, "run")
+        history = run(runner, "history").output
+        assert history.count(" run ") == 1
 
     def test_second_run_embeds_nothing_new(self, runner, demo_project: Path):
         run(runner, "run")

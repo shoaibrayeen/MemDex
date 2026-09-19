@@ -246,6 +246,11 @@ def find_affected(
         for token in sorted(cited_paths(text)):
             if _is_memory_path(token, memory_roots):
                 continue
+            # "dao/<x>_dao.go" cites a *pattern*, not a file: after the
+            # placeholder the token starts with "_", so skip those (same for
+            # suffix conventions like _test.go).
+            if Path(token).name.startswith(("_", ".")):
+                continue
             if "/" in token:
                 if not (cfg.root / token).exists() and Path(token).name not in basenames:
                     missing.append(token)
