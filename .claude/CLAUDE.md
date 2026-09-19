@@ -27,7 +27,7 @@ generated, and the marker at the top says so.
 
 ```bash
 uv sync --all-extras     # set up
-uv run pytest            # the whole suite, offline, ~5s
+uv run pytest            # the whole suite, offline, ~10s
 uv run pytest tests/unit # fast unit tests only
 uv run ruff check .      # lint (line length 100)
 uv run memdex --help     # run the CLI from the working tree
@@ -59,6 +59,40 @@ uv run memdex --help     # run the CLI from the working tree
   result and still exits 0. The markdown files are the product.
 - **Tests must not touch the network.** `tests/conftest.py` makes the downloading
   embedder raise, and every fixture uses `embedding.provider: hash`.
+
+## Versioning — every change bumps the patch
+
+Memdex ships a **patch bump with every change**. Do it in the same commit as the
+change itself:
+
+```bash
+python scripts/bump_version.py          # 1.0.1-beta -> 1.0.2-beta
+```
+
+**Minor and major bumps are the maintainer's call, never an agent's.** The
+script refuses them without `--confirm`, so do not reach for it unless the
+maintainer has explicitly asked for that release:
+
+```bash
+python scripts/bump_version.py minor --confirm   # only when asked
+python scripts/bump_version.py major --confirm   # only when asked
+```
+
+The version is written in three places (`src/memdex/__init__.py`,
+`pyproject.toml`, the Dockerfile label) plus the README; the script updates all
+of them from one source of truth, and a unit test asserts the display form
+(`x.y.z-beta`) and the PEP 440 form (`x.y.zb0`) stay the same release.
+
+Every change also gets a `changelog.html` entry, written by the same command:
+
+```bash
+python scripts/bump_version.py --tag fix \
+    --note "What changed, in one line" \
+    --why "Why it changed, and what it fixes for the reader."
+```
+
+The script refuses to bump without `--note`, so the changelog cannot silently
+fall behind the code. Tags are `add`, `fix` or `note`.
 
 ## Layout
 

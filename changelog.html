@@ -100,6 +100,96 @@
 
   <section class="release">
     <div class="release-head">
+      <h2>1.0.5-beta</h2>
+      <span class="pill">patch</span>
+      <span class="date">19 September 2026</span>
+    </div>
+
+    <div class="group">
+      <h3>Changes</h3>
+      <ul>
+        <li>
+          <span class="tag note">note</span><span class="what">Validation sweep: living docs no longer pin stale numbers</span>
+          <span class="why">Policy examples now read as x.y.z placeholders instead of a past version, and test-count/timing claims in the README and agent rules were replaced with durable phrasing. Changelog history is left untouched.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <h2>1.0.4-beta</h2>
+      <span class="pill">patch</span>
+      <span class="date">19 September 2026</span>
+    </div>
+
+    <div class="group">
+      <h3>Changes</h3>
+      <ul>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Pattern suffixes are no longer read as missing files</span>
+          <span class="why">A memory documenting the &#x27;dao/&lt;x&gt;_dao.go&#x27; naming convention was flagged for citing &#x27;_dao.go&#x27;; tokens whose filename starts with &#x27;_&#x27; or &#x27;.&#x27; are conventions, not paths.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <h2>1.0.3-beta</h2>
+      <span class="pill">patch</span>
+      <span class="date">19 September 2026</span>
+    </div>
+
+    <div class="group">
+      <h3>Changes</h3>
+      <ul>
+        <li>
+          <span class="tag add">add</span><span class="what">Patch-bump policy enforced by scripts/bump_version.py</span>
+          <span class="why">Every change ships a patch bump and a changelog line, written from one source of truth; minor and major bumps refuse to run without --confirm because they are the maintainer&#x27;s decision.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <h2>1.0.2-beta</h2>
+      <span class="pill">patch</span>
+      <span class="date">19 September 2026</span>
+    </div>
+
+    <div class="group">
+      <h3>Changes</h3>
+      <ul>
+        <li>
+          <span class="tag add">add</span><span class="what">Quiet no-op runs</span>
+          <span class="why">An unchanged repository gets one &#x27;Nothing to sync&#x27; / &#x27;Nothing to refresh&#x27; line instead of a full report, and no-ops write no history row — teams run these habitually, and the token chart should show work, not polling.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <h2>1.0.1-beta</h2>
+      <span class="pill">patch</span>
+      <span class="date">19 September 2026</span>
+    </div>
+
+    <div class="group">
+      <h3>Changes</h3>
+      <ul>
+        <li>
+          <span class="tag fix">fix</span><span class="what">Dotted directories keep their dot in memory references</span>
+          <span class="why">The refresh path scanner read &#x27;.memdex/config.yaml&#x27; as &#x27;memdex/config.yaml&#x27; — a path that exists nowhere — so every memory citing a dotfile directory was wrongly reported as a dead reference. Found by running refresh on Memdex&#x27;s own repository.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
       <h2>1.0.0-beta</h2>
       <span class="pill">beta release</span>
       <span class="date">19 September 2026</span>

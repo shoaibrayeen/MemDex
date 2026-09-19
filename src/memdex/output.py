@@ -263,8 +263,9 @@ def refresh_report(report, llm_used: bool) -> None:
             note(f"    … and {len(report.changed) - 8} more")
 
     if report.affected:
+        verb = "references" if len(report.affected) == 1 else "reference"
         console.print(
-            f"[warn]![/warn] {plural(len(report.affected), 'memory', 'memories')} reference "
+            f"[warn]![/warn] {plural(len(report.affected), 'memory', 'memories')} {verb} "
             "code that changed:"
         )
         for item in report.affected[:8]:
@@ -274,8 +275,11 @@ def refresh_report(report, llm_used: bool) -> None:
         console.print("[ok]✓[/ok] No memory references the changed code")
 
     if report.dead:
+        verb = "cites a file" if len(report.dead) == 1 else "cite files"
         console.print(
-            f"[warn]![/warn] {plural(len(report.dead), 'memory', 'memories')} cite files "
+            f"[warn]![/warn] {plural(len(report.dead), 'memory', 'memories')} {verb} "
+            "that no longer exists:" if len(report.dead) == 1
+            else f"[warn]![/warn] {plural(len(report.dead), 'memory', 'memories')} {verb} "
             "that no longer exist:"
         )
         for item in report.dead[:8]:

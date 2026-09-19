@@ -23,4 +23,6 @@ run ends with a pipeline pass so everything re-embeds. The internal pipeline
 pass records no `run` audit row — refresh logs exactly one `refresh` event.
 
 Proven the day it was built: the first refresh on a real work repository flagged
-two rules citing `graphify-out/graph.json`, a file that genuinely did not exist.
+two assistant rule files citing a generated graph JSON that did not exist there.
+(Write such examples without the literal path — a bare path in memory is itself
+a citation, and refresh would flag this very file for it.)

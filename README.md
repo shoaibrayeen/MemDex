@@ -1,6 +1,6 @@
 # Memdex
 
-**A local-first memory optimizer for AI coding assistants.** `v1.0.0-beta`
+**A local-first memory optimizer for AI coding assistants.** `v1.0.5-beta`
 
 Memdex turns the large, unstructured memory your AI assistant accumulates —
 `MEMORY.md`, `memory/`, `AGENTS.md`, `.claude/`, `.cursor/` — into a small searchable index
@@ -31,11 +31,19 @@ MEMORY.md  →  everything you have ever written  →  AI assistant
 
 ## Install
 
-The one-shot installer handles everything, including the Python version:
+Clone the repository, then run the one-shot installer — it handles everything
+else, including fetching the right Python version:
 
 ```bash
+git clone https://github.com/memdex/memdex.git
+cd memdex
 ./setup.sh
 ```
+
+That puts a `memdex` command on your PATH (via `~/.local/bin`). If your shell
+cannot find it afterwards, run `uv tool update-shell` and open a new terminal.
+You can then use `memdex` in any project — you never need to be inside this
+repository again.
 
 | Flag | What it does |
 | --- | --- |
@@ -669,7 +677,7 @@ right interpreter, so the practical difference for users is small.
 
 ```bash
 ./setup.sh --dev      # sync dependencies, run the tests, lint
-uv run pytest         # 343 tests
+uv run pytest         # the whole suite — offline, ~10s
 uv run ruff check .
 ```
 
@@ -703,10 +711,28 @@ which one is unhappy.
 
 ## Versioning
 
-Memdex follows semantic versioning; the current release is **v1.0.0-beta**
-(package metadata: `1.0.0b0`). Beta means the CLI surface and config schema are
-settling — anything that changes is recorded in [changelog.html](changelog.html),
-in the same commit as the change itself.
+Memdex follows semantic versioning; the current release is **v1.0.5-beta**
+(package metadata: `1.0.5b0`). Beta means the CLI surface and config schema are
+settling.
+
+**Every change ships a patch bump**, in the same commit as the change and its
+[changelog.html](changelog.html) entry:
+
+```bash
+python scripts/bump_version.py          # 1.0.1-beta -> 1.0.2-beta
+```
+
+Minor and major releases are a deliberate decision, so the script refuses them
+unless you say so explicitly:
+
+```bash
+python scripts/bump_version.py minor --confirm
+python scripts/bump_version.py major --confirm
+```
+
+One command updates `src/memdex/__init__.py`, `pyproject.toml`, the Dockerfile
+label and this README; a unit test keeps the display form (`x.y.z-beta`) and the
+PEP 440 form (`x.y.zb0`) pointing at the same release.
 
 ## License
 

@@ -46,4 +46,9 @@ uv run memdex --help
 - Degrade rather than abort: a missing embedding model falls back to the hash
   embedder, and any LLM failure keeps the deterministic result and exits 0.
 - Tests never touch the network; fixtures use `embedding.provider: hash`.
+- Bump the patch version on every change, in the same commit, with its changelog
+  entry: `python scripts/bump_version.py --tag fix --note "…" --why "…"`. The
+  script refuses to bump without `--note`, so the changelog stays current.
+  Minor and major bumps need `--confirm` and are the maintainer's decision —
+  never bump them on your own initiative.
 - Line length 100, ruff-clean, type hints on public functions.

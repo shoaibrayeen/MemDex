@@ -265,3 +265,80 @@ class TestVersioning:
         from packaging.version import Version
 
         assert Version(__version__).is_prerelease
+
+
+class TestVersionBumpPolicy:
+    """Every change bumps the patch; minor and major are the maintainer's call."""
+
+    def _script(self):
+        """Load scripts/bump_version.py as a module (it is not an installed package)."""
+        import importlib.util
+        import sys
+
+        if "bump_version" in sys.modules:
+            return sys.modules["bump_version"]
+        path = Path(__file__).resolve().parents[2] / "scripts" / "bump_version.py"
+        spec = importlib.util.spec_from_file_location("bump_version", path)
+        module = importlib.util.module_from_spec(spec)
+        # dataclasses resolves a class's module through sys.modules; without
+        # this the frozen dataclass below fails to build.
+        sys.modules["bump_version"] = module
+        spec.loader.exec_module(module)
+        return module
+
+    def test_patch_is_the_default_bump(self):
+        bump = self._script()
+        assert bump.Version.parse("1.0.0-beta").bump("patch").display == "1.0.1-beta"
+
+    def test_minor_and_major_reset_the_lower_parts(self):
+        bump = self._script()
+        version = bump.Version.parse("1.4.7-beta")
+        assert version.bump("minor").display == "1.5.0-beta"
+        assert version.bump("major").display == "2.0.0-beta"
+
+    def test_prerelease_label_survives_a_bump(self):
+        bump = self._script()
+        assert bump.Version.parse("1.0.0-beta").bump("patch").pep440 == "1.0.1b0"
+        assert bump.Version.parse("2.1.0").bump("patch").pep440 == "2.1.1"
+
+    def test_minor_and_major_refuse_without_confirmation(self, monkeypatch, capsys):
+        """The policy is enforced by the tool, not only written in the docs."""
+        bump = self._script()
+        for part in ("minor", "major"):
+            monkeypatch.setattr("sys.argv", ["bump_version.py", part])
+            assert bump.main() == 1
+            assert "--confirm" in capsys.readouterr().err
+
+    def test_patch_needs_no_confirmation(self, monkeypatch, capsys):
+        bump = self._script()
+        monkeypatch.setattr(
+            "sys.argv", ["bump_version.py", "--dry-run", "--note", "Something changed"]
+        )
+        assert bump.main() == 0
+        out = capsys.readouterr().out
+        assert "->" in out and "Something changed" in out
+
+    def test_a_bump_without_a_changelog_note_is_refused(self, monkeypatch, capsys):
+        """The changelog cannot fall behind the code: the tool insists on a line."""
+        bump = self._script()
+        monkeypatch.setattr("sys.argv", ["bump_version.py"])
+        assert bump.main() == 1
+        assert "--note" in capsys.readouterr().err
+
+    def test_no_changelog_is_the_explicit_escape_hatch(self, monkeypatch, capsys):
+        bump = self._script()
+        monkeypatch.setattr("sys.argv", ["bump_version.py", "--dry-run", "--no-changelog"])
+        assert bump.main() == 0
+
+    def test_changelog_entry_is_escaped_html(self):
+        bump = self._script()
+        entry = bump.changelog_entry("fix", "Handle <script> & co", "Why it <matters>")
+        assert "&lt;script&gt;" in entry and "&amp;" in entry
+        assert "<script>" not in entry
+        assert 'class="tag fix"' in entry
+
+    def test_the_script_reads_the_version_the_package_reports(self, monkeypatch, capsys):
+        bump = self._script()
+        monkeypatch.setattr("sys.argv", ["bump_version.py", "--show"])
+        bump.main()
+        assert __version__ in capsys.readouterr().out

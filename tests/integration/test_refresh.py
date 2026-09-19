@@ -108,6 +108,32 @@ class TestGitPlumbing:
         text = "Settings in config/db.yaml, entry src/app.py; see also pom.xml. Not a.file"
         assert cited_paths(text) == {"config/db.yaml", "src/app.py", "pom.xml"}
 
+    def test_dotted_directories_keep_their_dot(self):
+        """".memdex/config.yaml" must not be read as the non-existent "memdex/…"."""
+        text = "Config at .memdex/config.yaml, CI in .github/workflows/ci.yaml"
+        assert cited_paths(text) == {".memdex/config.yaml", ".github/workflows/ci.yaml"}
+
+    def test_a_dotted_path_that_exists_is_not_a_dead_reference(
+        self, runner, tmp_path, monkeypatch
+    ):
+        root = tmp_path / "dotted"
+        (root / "src").mkdir(parents=True)
+        (root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        (root / "MEMORY.md").write_text(
+            "# Notes\n\n## Configuration\n\nEvery Memdex setting lives in "
+            ".memdex/config.yaml, which is committed so the whole team shares it.\n",
+            encoding="utf-8",
+        )
+        write_config(root)  # creates the real .memdex/config.yaml
+        git(root, "init", "-q")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "init")
+        monkeypatch.chdir(root)
+        run_pytest_runner(root)
+
+        result = run(runner, "refresh")
+        assert "no longer exist" not in flat(result.output)
+
 
 class TestFirstRefresh:
     def test_sets_the_baseline_and_scans_dead_refs(self, runner, team_repo: Path):

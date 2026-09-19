@@ -33,8 +33,12 @@ MAX_FILE_LINES = 80
 MAX_LISTED = 8
 
 # Path-like tokens a memory can cite: src/app/Main.java, pom.xml, config/db.yaml…
+# The left boundary is a lookbehind rather than \b so that a dotted directory
+# keeps its dot: with \b, ".memdex/config.yaml" matched as "memdex/config.yaml",
+# a path that exists nowhere — and every memory citing one was wrongly reported
+# as a dead reference.
 PATH_TOKEN_RE = re.compile(
-    r"\b(?:[\w.-]+/)*[\w.-]+\."
+    r"(?<![\w./-])(?:[\w.-]+/)*[\w.-]+\."
     r"(?:java|kt|kts|py|go|rs|rb|php|cs|c|h|cc|cpp|hpp|js|jsx|ts|tsx|vue|swift|"
     r"scala|sql|sh|bash|xml|ya?ml|json|toml|ini|properties|gradle|tf|proto)\b"
 )
