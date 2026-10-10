@@ -1,5 +1,7 @@
 # Memdex
 
+[![Architecture diagram of shoaibrayeen/memdex](https://gitdiagram.com/shoaibrayeen/memdex/diagram.png)](https://gitdiagram.com/shoaibrayeen/memdex?utm_source=readme&utm_medium=picture)
+
 **A local-first memory optimizer for AI coding assistants.** `v1.0.6-beta`
 
 Memdex turns the large, unstructured memory your AI assistant accumulates —
